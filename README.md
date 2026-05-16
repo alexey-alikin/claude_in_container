@@ -13,8 +13,8 @@ Run [Claude Code](https://docs.anthropic.com/claude-code) inside a Docker contai
 git clone https://github.com/alexey-alikin/claude_in_container.git
 cd claude_in_container
 
-# First run: opens a shell inside the container.
-docker compose run --rm project-a
+# First run: opens a shell inside the example project's container.
+./claude.sh shell example
 
 # Inside the container, log in once:
 claude        # then run /login and follow the prompts
@@ -22,21 +22,35 @@ claude        # then run /login and follow the prompts
 
 Credentials are written to `./claude_home/` on the host and reused by every later run.
 
+## Wrapper commands
+
+| Command | What it does |
+| --- | --- |
+| `./claude.sh list` | List all projects under `projects/` |
+| `./claude.sh new <name>` | Create `projects/<name>/` and `git init` inside it |
+| `./claude.sh shell <name>` | Open a bash shell in the container for `<name>` |
+| `./claude.sh run <name> -- <args>` | Run `claude <args>` in the container for `<name>` |
+| `./claude.sh help` | Show usage |
+
+In `run`, the `--` separates wrapper arguments from arguments forwarded to `claude`. For example, `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"` inside the container for `my-api`. Project names must match `[a-zA-Z0-9_-]+`.
+
 ## Daily usage
 
-Open an interactive shell in the project:
+Open an interactive shell in a project:
 
 ```bash
-docker compose run --rm project-a
+./claude.sh shell my-project
 ```
 
 Run a one-shot Claude command (headless mode, requires `CLAUDE_CODE_OAUTH_TOKEN` — see Authentication):
 
 ```bash
-docker compose run --rm project-a claude -p "explain the files in this repo"
+./claude.sh run my-project -- -p "explain the files in this repo"
 ```
 
-The container's `/workspace` is bind-mounted to `./projects/project-a/` on your host. Put your code there; edits sync both ways instantly.
+The container's `/workspace` is bind-mounted to `./projects/my-project/` on your host. Put your code there; edits sync both ways instantly.
+
+Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help` shows full usage.
 
 ## Authentication
 
@@ -49,7 +63,7 @@ Two modes, pick whichever you need:
 ```bash
 cp .env.example .env
 # Then generate a token from inside an interactive session:
-#   docker compose run --rm project-a claude setup-token
+#   ./claude.sh run example -- setup-token
 # Paste the token into .env as CLAUDE_CODE_OAUTH_TOKEN=...
 ```
 
@@ -71,33 +85,18 @@ If you initialize your own git repo inside `projects/<name>/`, treat it as a sep
 
 ## Multiple projects
 
-Each project is a folder under `projects/` mounted into its own container. The contents of `projects/*` are gitignored from this repo, so each project can have its own independent git history.
+Each subfolder of `projects/` is its own workspace with its own Claude session. Manage them with the wrapper:
 
-Right now the compose file defines a single service named `project-a`. To add a second project, copy the `project-a` block in `docker-compose.yml`, rename it, and point its volume at the new folder:
-
-```yaml
-  project-b:
-    build:
-      context: .
-      args:
-        USER_UID: ${UID:-1000}
-    stdin_open: true
-    tty: true
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - ./projects/project-b:/workspace
-      - ./claude_home:/home/claudeuser
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    mem_limit: 2g
-    cpus: 1.0
+```bash
+./claude.sh new my-api      # create projects/my-api and git init it
+./claude.sh new other-app   # second project, fully independent
+./claude.sh list            # show all projects
+./claude.sh shell my-api    # open a shell in the my-api container
 ```
 
-Then `docker compose run --rm project-b`. A wrapper script that removes this boilerplate is planned (see `PLAN.md`).
+You can freely `git init`, `git remote add`, and `git push` inside any project folder — `projects/*` is gitignored from this repo (except the `example/` placeholder), so each project keeps its own git history completely separate from this one.
+
+The compose file still works directly if you prefer: `PROJECT=my-api docker compose run --rm claude`. The wrapper is just sugar on top.
 
 ## Security model (short version)
 
