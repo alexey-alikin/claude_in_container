@@ -1,16 +1,17 @@
 services:
-  project-a:
+  claude:
     build:
       context: .
       args:
         USER_UID: ${UID:-1000}
     stdin_open: true
     tty: true
+    command: bash
     env_file:
       - path: .env
         required: false
     volumes:
-      - ./projects/project-a:/workspace
+      - ./projects/${PROJECT:?set PROJECT env var, or use ./claude.sh}:/workspace
       - ./claude_home:/home/claudeuser
     cap_drop:
       - ALL

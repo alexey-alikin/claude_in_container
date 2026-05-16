@@ -3,3 +3,7 @@
 
 # But keep this .gitignore file
 !.gitignore
+
+# Keep the example project (a placeholder shipped with the repo)
+!example
+!example/**
