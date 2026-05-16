@@ -1,0 +1,27 @@
+# Egress allowlist for hardened mode.
+# Each line is a regex matched against the destination hostname.
+# Lines starting with # and blank lines are ignored.
+#
+# To allow another host, add a line like:  ^example\.com$
+# After editing, rebuild the proxy:
+#   docker compose -f docker-compose.yml -f docker-compose.hardened.yml build egress-proxy
+
+# Anthropic (Claude API, OAuth, telemetry)
+^api\.anthropic\.com$
+^statsig\.anthropic\.com$
+^console\.anthropic\.com$
+^claude\.ai$
+
+# GitHub (clone, releases, raw content, API)
+^github\.com$
+^api\.github\.com$
+^codeload\.github\.com$
+^raw\.githubusercontent\.com$
+^objects\.githubusercontent\.com$
+
+# npm
+^registry\.npmjs\.org$
+
+# PyPI
+^pypi\.org$
+^files\.pythonhosted\.org$

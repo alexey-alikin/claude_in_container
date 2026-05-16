@@ -119,10 +119,35 @@ What it does NOT protect against:
 
 - Anything Claude does to files inside the mounted project folder — that's the point of the tool
 - Theft of the OAuth token in `./claude_home/` if other users on your host can read it (see [Keep your secrets out of git](#keep-your-secrets-out-of-git) for the `chmod` recommendation)
-- Network exfiltration: the container currently has full outbound internet access
+- Network exfiltration: in default mode the container has full outbound internet access (see [Hardened mode](#hardened-mode-network-allowlist) for an opt-in egress allowlist)
 - Compromise of the Docker daemon or anyone in the `docker` group on the host
 
-For the full threat model — including what's _not_ protected and how to harden further — see [SECURITY.md](SECURITY.md). A stricter network-egress allowlist is still on the roadmap.
+For the full threat model — including what's _not_ protected and how to harden further — see [SECURITY.md](SECURITY.md).
+
+## Hardened mode (network allowlist)
+
+By default the container has unrestricted internet access. The repo ships an opt-in overlay that locks egress to a small allowlist of domains via a `tinyproxy` sidecar — Anthropic's API, GitHub, npm, and PyPI by default.
+
+Enable it by setting `HARDENED=1`:
+
+```bash
+HARDENED=1 ./claude.sh shell my-project
+HARDENED=1 ./claude.sh run my-project -- -p "explain this repo"
+```
+
+In hardened mode the `claude` container is moved onto an internal-only Docker network and can only reach the outside world by going through the proxy. Direct connections to anything not on the allowlist will fail.
+
+The allowlist lives in [`hardened/filter`](hardened/filter) — edit it to add hosts your projects need (e.g. `^crates\.io$` for Rust, `^rubygems\.org$` for Ruby), then rebuild the proxy:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.hardened.yml build egress-proxy
+```
+
+Notes and limitations:
+
+- Only HTTP and HTTPS (`CONNECT` method) are filtered. Other protocols (SSH, raw sockets) just fail outright in hardened mode — no direct egress is possible.
+- Hostname matching only: `tinyproxy` does not decrypt TLS, so it cannot filter by URL path inside HTTPS requests. Anything served from an allowed host is reachable.
+- Tools that ignore the `HTTP_PROXY`/`HTTPS_PROXY` env vars will fail to reach the internet. For Claude Code and most package managers this is the intended behavior.
 
 ## Troubleshooting
 

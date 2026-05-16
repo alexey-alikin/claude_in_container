@@ -1,0 +1,54 @@
+# Opt-in overlay that locks the claude container's network egress to an
+# allowlist enforced by a tinyproxy sidecar. Use with:
+#
+#   HARDENED=1 ./claude.sh shell <project>
+#
+# or directly:
+#
+#   PROJECT=<name> docker compose \
+#     -f docker-compose.yml -f docker-compose.hardened.yml \
+#     run --rm claude
+#
+# In hardened mode the claude container is moved onto an internal-only
+# Docker network and cannot reach the outside world except through the
+# proxy. Any host not listed in hardened/filter will be blocked.
+
+services:
+  claude:
+    environment:
+      HTTP_PROXY: http://egress-proxy:8888
+      HTTPS_PROXY: http://egress-proxy:8888
+      NO_PROXY: localhost,127.0.0.1,egress-proxy
+      http_proxy: http://egress-proxy:8888
+      https_proxy: http://egress-proxy:8888
+      no_proxy: localhost,127.0.0.1,egress-proxy
+    depends_on:
+      - egress-proxy
+
+  egress-proxy:
+    build:
+      context: ./hardened
+    networks:
+      - egress
+      - internet
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+
+networks:
+  egress:
+    # Flip the base-file `egress` network to internal: claude on this
+    # network can talk to the proxy but cannot reach the host or the
+    # internet directly.
+    driver: bridge
+    internal: true
+  internet:
+    # The proxy uses this second NIC to reach the real internet.
+    driver: bridge
