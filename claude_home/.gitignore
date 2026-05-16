@@ -1,0 +1,6 @@
+  GNU nano 7.2                                                          projects/.gitignore                                                                    
+# Ignore all files and subfolders
+*
+
+# But keep this .gitignore file
+!.gitignore

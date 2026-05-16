@@ -1,0 +1,22 @@
+services:
+  project-a:
+    build:
+      context: .
+      args:
+        USER_UID: ${UID:-1000}
+    stdin_open: true
+    tty: true
+    env_file: .env
+    volumes:
+      - ./projects/project-a:/workspace
+      #- ./claude_data:/home/claudeuser/.claude
+      - ./claude_home:/home/claudeuser  # mount entire home instead
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 1.0
+
+#volumes:
+ # claude-config:
