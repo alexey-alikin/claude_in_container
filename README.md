@@ -122,7 +122,7 @@ What it does NOT protect against:
 - Network exfiltration: the container currently has full outbound internet access
 - Compromise of the Docker daemon or anyone in the `docker` group on the host
 
-A stricter network-allowlist overlay and a full `SECURITY.md` are on the roadmap.
+For the full threat model — including what's _not_ protected and how to harden further — see [SECURITY.md](SECURITY.md). A stricter network-egress allowlist is still on the roadmap.
 
 ## Troubleshooting
 
