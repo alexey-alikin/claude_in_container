@@ -81,6 +81,14 @@ A leaked token lets anyone use your Claude.ai subscription, so:
 - If you fork or copy this repo, double-check the `.gitignore` files came along.
 - If you accidentally commit a token, rotate it immediately by deleting `claude_home/` and re-running `/login` (and revoke any leaked `CLAUDE_CODE_OAUTH_TOKEN` from your Anthropic account).
 
+On a shared host (laptop with multiple user accounts, dev server, etc.), also restrict filesystem permissions on `claude_home/` so other users on the same machine can't read your OAuth credentials:
+
+```bash
+chmod 700 claude_home/
+```
+
+Git-ignoring isn't enough on its own — anyone with shell access to your host can read the file otherwise.
+
 If you initialize your own git repo inside `projects/<name>/`, treat it as a separate project and make sure secrets for that project also stay out of its history.
 
 ## Multiple projects
@@ -104,12 +112,13 @@ What the container protects against:
 
 - Code run by Claude touching files outside `./projects/<name>/` on your host
 - Privilege escalation to root inside the container (no capabilities, `no-new-privileges`)
-- Unbounded resource use (memory and CPU are capped per service)
+- Tampering with installed system binaries — the container's root filesystem is read-only; only `/workspace`, `/home/claudeuser`, and `/tmp` (an in-memory tmpfs) are writable
+- Unbounded resource use (memory, CPU, processes, and open file descriptors are all capped per container)
 
 What it does NOT protect against:
 
 - Anything Claude does to files inside the mounted project folder — that's the point of the tool
-- Theft of the OAuth token in `./claude_home/` if other users on your host can read it
+- Theft of the OAuth token in `./claude_home/` if other users on your host can read it (see [Keep your secrets out of git](#keep-your-secrets-out-of-git) for the `chmod` recommendation)
 - Network exfiltration: the container currently has full outbound internet access
 - Compromise of the Docker daemon or anyone in the `docker` group on the host
 
