@@ -10,7 +10,7 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 
 | Path | Purpose |
 | --- | --- |
-| `Dockerfile` | `node:20-slim` + global install of `@anthropic-ai/claude-code` (at `latest`); creates non-root `claudeuser` whose UID matches the host via the `USER_UID` build arg. |
+| `Dockerfile` | `node:20-slim` + `apt-get upgrade` for Debian security patches + global install of `@anthropic-ai/claude-code` (at `latest`); creates non-root `claudeuser` whose UID matches the host via the `USER_UID` build arg. |
 | `docker-compose.yml` | Single parameterized service named `claude`. Bind-mounts `./projects/${PROJECT}:/workspace` (errors if `PROJECT` unset) and `./claude_home:/home/claudeuser`. `cap_drop: ALL`, `no-new-privileges`, `read_only: true` with tmpfs `/tmp`, caps: 2 GB RAM, 1.0 CPU, `pids_limit: 512`, `nofile: 8192/16384`. Joins the named bridge network `egress`. |
 | `docker-compose.hardened.yml` | Opt-in overlay. Sets `HTTP_PROXY`/`HTTPS_PROXY` on `claude`, flips `egress` to `internal: true` (no direct internet), adds `egress-proxy` sidecar on both `egress` and a new `internet` network. |
 | `hardened/Dockerfile` | `alpine:3.21` + `tinyproxy`. |
@@ -22,8 +22,10 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 | `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode only). Real `.env` is gitignored. |
 | `LICENSE` | MIT. |
 | `README.md`, `SECURITY.md`, `PLAN.md`, `CONTRIBUTING.md` | User-facing docs, roadmap, and contributor guide. |
-| `.github/workflows/ci.yml` | GitHub Actions: hadolint on both Dockerfiles, `docker compose config` for default + hardened overlay, trivy image scan (HIGH+CRITICAL, fails CI; SARIF uploaded as artifact). |
+| `.github/workflows/ci.yml` | GitHub Actions: hadolint on both Dockerfiles, `docker compose config` for default + hardened overlay, trivy image scan (HIGH+CRITICAL, fails CI; table output to log). |
 | `.github/ISSUE_TEMPLATE/` | Bug-report and feature-request forms, plus `config.yml` that disables blank issues and routes security reports to `SECURITY.md`. |
+| `.hadolint.yaml` | Ignores DL3005/DL3008/DL3016/DL3018 — the version-pinning rules and `apt-get upgrade`, each documented inline with the reason. |
+| `.trivyignore` | Suppresses 11 HIGH CVEs in npm's bundled deps (cross-spawn, glob, minimatch, tar) that ship with `node:20-slim`. Documented per-CVE; not exploitable in our use case. |
 | `docs/build-summary.md`, `docs/test-plan.md` | Meta-docs (this file and the test plan). |
 
 ## How a user interacts with it
