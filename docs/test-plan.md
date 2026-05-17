@@ -6,7 +6,7 @@ Manual smoke tests for the repo. Two parts: **basic mode** (default) and **harde
 
 - Docker Engine + Compose v2 are installed and your user can run `docker`.
 - You have cloned the repo and `cd`'d into it.
-- You have logged in to Claude at least once (`claude` → `/login`) so `claude_home/` has credentials. Headless tests that need an OAuth token are clearly marked optional.
+- A Claude.ai account is available for the `/login` step. Headless tests that need an OAuth token are clearly marked optional.
 
 ## Fresh-clone smoke test (release sanity check)
 
@@ -86,9 +86,9 @@ test_url() {
 - `ls /workspace` shows the contents of `./projects/example/` on your host
 - `id -un` returns `claudeuser`
 
-### 1.3 Persistent login
+### 1.3 First login
 
-Inside the container, if you haven't logged in before:
+Inside the container (still in the shell from 1.2):
 
 ```bash
 claude
@@ -101,12 +101,28 @@ claude
 Then on the **host** (outside the container):
 
 ```bash
-ls claude_home/.claude/
+ls -la claude_home/.claude/
 ```
 
-**Expected:** a credentials file (e.g. `.credentials.json`) exists. Re-running `./claude.sh shell example` and then `claude` should not require another login.
+**Expected:** `.credentials.json` is listed (it starts with a dot, so plain `ls` would hide it).
 
-### 1.4 Filesystem isolation (read-only rootfs)
+### 1.4 Login persists across restarts
+
+Exit the container, then on the host:
+
+```bash
+./claude.sh shell example
+```
+
+Inside the new shell:
+
+```bash
+claude
+```
+
+**Expected:** Claude starts without prompting for `/login` — the credentials from 1.3 are reused. Type `/exit` to return to the shell.
+
+### 1.5 Filesystem isolation (read-only rootfs)
 
 Inside `./claude.sh shell example`:
 
@@ -120,7 +136,7 @@ touch /etc/probe                                            # FAILS
 
 **Expected:** first three commands succeed silently. Last two fail with `Read-only file system`.
 
-### 1.5 Project creation and listing
+### 1.6 Project creation and listing
 
 ```bash
 ./claude.sh new test-proj
@@ -131,7 +147,7 @@ rm -rf projects/test-proj
 
 **Expected:** `list` shows `example` and `test-proj`; `.git/` exists in the new project.
 
-### 1.6 Invalid project names are rejected
+### 1.7 Invalid project names are rejected
 
 ```bash
 ./claude.sh new 'bad name'         # space
@@ -145,7 +161,7 @@ rm -rf projects/test-proj
 - third fails with `error: projects/does-not-exist does not exist`
 - script exits non-zero in each case
 
-### 1.7 Network is unrestricted in basic mode
+### 1.8 Network is unrestricted in basic mode
 
 Inside `./claude.sh shell example`, define `test_url` (see top of file), then:
 
@@ -155,9 +171,9 @@ test_url https://github.com
 test_url https://example.com
 ```
 
-**Expected:** all three print a status line (e.g. `-> 200` or `-> 301`). None print `FAIL`.
+**Expected:** all three print a real status line from the upstream server (e.g. `-> 200`, `-> 301`, `-> 404`). None print `FAIL`. A 404 from `api.anthropic.com` is fine — it means the request reached the upstream, which is what this step verifies.
 
-### 1.8 Headless mode — optional, requires OAuth token
+### 1.9 Headless mode — optional, requires OAuth token
 
 ```bash
 # On the host, generate the token from an interactive shell first:
@@ -259,7 +275,7 @@ Inside (with `test_url` defined):
 test_url https://example.com
 ```
 
-**Expected:** `-> 200`. No allowlist applies, identical to Part 1.7.
+**Expected:** `-> 200`. No allowlist applies, identical to Part 1.8.
 
 ---
 
