@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - Dockerfile
+          - hardened/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+
+  compose-config:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: example
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate default compose
+        run: docker compose config -q
+      - name: validate hardened overlay
+        run: docker compose -f docker-compose.yml -f docker-compose.hardened.yml config -q
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build image
+        run: docker build -t claude_in_container:ci .
+      - name: scan with trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: claude_in_container:ci
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          format: table

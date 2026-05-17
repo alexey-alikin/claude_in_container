@@ -1,0 +1,23 @@
+# Trivy ignore list for the claude_in_container image.
+#
+# Each entry below is a HIGH vulnerability in a dependency bundled inside
+# the `npm` CLI that ships with `node:20-slim`. We don't install these
+# directly; they live under /usr/local/lib/node_modules/npm/node_modules/.
+# They'll clear automatically when upstream rebuilds node:20-slim or when
+# we bump to a newer Node major.
+#
+# All ignored items are mitigated by the threat model: the container does
+# not process untrusted tar archives or untrusted glob patterns, which is
+# what these CVEs require to be exploited.
+
+CVE-2024-21538   # cross-spawn ReDoS
+CVE-2025-64756   # glob command injection (Windows path handling)
+CVE-2026-26996   # minimatch DoS
+CVE-2026-27903   # minimatch DoS (unbounded backtracking)
+CVE-2026-27904   # minimatch DoS (catastrophic backtracking)
+CVE-2026-23745   # node-tar arbitrary file overwrite via linkpath
+CVE-2026-23950   # node-tar Unicode path collision race
+CVE-2026-24842   # node-tar hardlink path traversal
+CVE-2026-26960   # node-tar arbitrary read/write via hardlink
+CVE-2026-29786   # node-tar drive-relative linkpath traversal
+CVE-2026-31802   # node-tar file overwrite via drive-relative symlink

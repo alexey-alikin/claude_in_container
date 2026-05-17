@@ -8,6 +8,35 @@ Manual smoke tests for the repo. Two parts: **basic mode** (default) and **harde
 - You have cloned the repo and `cd`'d into it.
 - You have logged in to Claude at least once (`claude` → `/login`) so `claude_home/` has credentials. Headless tests that need an OAuth token are clearly marked optional.
 
+## Fresh-clone smoke test (release sanity check)
+
+Run this when you want to verify the repo works for a brand-new user — fresh clone, no cached image layers, no leftover state from your dev work. Skip if you're just iterating locally.
+
+```bash
+# Clone fresh into a scratch dir outside your working copy.
+cd /tmp && rm -rf cic-smoke && mkdir cic-smoke && cd cic-smoke
+git clone https://github.com/alexey-alikin/claude_in_container.git
+cd claude_in_container
+
+# Force a rebuild from scratch (no layer cache reuse).
+PROJECT=example docker compose build --no-cache claude
+
+# First start — should land you in /workspace as claudeuser.
+./claude.sh shell example
+```
+
+**Expected:** `--no-cache` build runs every Dockerfile step from scratch (no `CACHED` markers); the shell opens and `id -un` returns `claudeuser`. From here, walk through Part 1 below.
+
+For hardened mode, additionally:
+
+```bash
+PROJECT=example docker compose -f docker-compose.yml -f docker-compose.hardened.yml \
+  build --no-cache egress-proxy
+HARDENED=1 ./claude.sh shell example
+```
+
+Then walk through Part 2.
+
 ## The `node` helper for connectivity tests
 
 The base image ships with `node` but not `curl`/`wget`. This helper uses Node's built-in `fetch` and routes through the proxy when `HTTPS_PROXY` is set (i.e. in hardened mode). Define it once at the start of any in-container shell:
