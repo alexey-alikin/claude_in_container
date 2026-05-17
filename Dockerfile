@@ -1,6 +1,8 @@
 FROM node:20-slim
 WORKDIR /tmp
-RUN apt-get update && apt-get install -y --no-install-recommends git && \
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get install -y --no-install-recommends git && \
     rm -rf /var/lib/apt/lists/*
 RUN npm install -g @anthropic-ai/claude-code
 ARG USER_UID=1000

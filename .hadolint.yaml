@@ -5,3 +5,7 @@ ignored:
   - DL3008  # apt-get install: pin versions
   - DL3016  # npm install: pin versions
   - DL3018  # apk add: pin versions
+  # apt-get upgrade is intentional: pulls Debian security updates that
+  # the upstream node:20-slim image hasn't picked up yet. Non-determinism
+  # is acceptable for a security-hardened container that rebuilds rarely.
+  - DL3005  # do not use apt-get upgrade
