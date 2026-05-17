@@ -101,20 +101,20 @@ The architecture already enforces this (one mount, one project). Just call it ou
 - **userns-remap** — strong UID isolation, but global Docker daemon config; awkward for a clone-and-run repo. Mention in SECURITY.md as "advanced users can enable."
 - **AppArmor/SELinux profile** — distro-specific, high friction. Default Docker profile is fine for v1.
 - **Image signing / SBOM** — useful if you publish prebuilt images to a registry; skip while users build locally.
-- **CI:** hadolint on Dockerfile, `docker compose config` validation, trivy scan on built image. Worth adding once the repo gets contributors.
+- ~~**CI:** hadolint on Dockerfile, `docker compose config` validation, trivy scan on built image.~~ *(done in PR #6.)*
 
 ---
 
 ## 4. Suggested order of work
 
-Ship in this order so each step is independently useful:
+Ship in this order so each step is independently useful. **All six phases have shipped**; entries below are kept as historical context.
 
-1. **Foundation (half-day):** LICENSE, `.env.example`, pin claude-code version, expand README to cover quick start + auth + daily usage. → Repo is now usable by a stranger.
-2. **Multi-project (half-day):** parameterize compose, add `claude.sh` wrapper, add `projects/example/`, update README §5. → Multi-project workflow is obvious.
-3. **Hardening pass 1 (1–2h):** read-only rootfs, tmpfs, pids_limit, ulimits, token chmod doc. All zero-risk additions. → Tighter defaults, no behavior change for users.
-4. **SECURITY.md + threat model (1h):** write it down. → Sets expectations honestly.
-5. **Network egress allowlist (half-day):** sidecar proxy + compose overlay. → The big security win. Ship as opt-in first, default-on once it's been used in anger.
-6. **CI + polish (later):** hadolint, compose lint, trivy, CONTRIBUTING.md, issue templates.
+1. **Foundation (half-day):** LICENSE, `.env.example`, pin claude-code version, expand README to cover quick start + auth + daily usage. → Repo is now usable by a stranger. *(shipped: PR #1)*
+2. **Multi-project (half-day):** parameterize compose, add `claude.sh` wrapper, add `projects/example/`, update README §5. → Multi-project workflow is obvious. *(shipped: PR #2)*
+3. **Hardening pass 1 (1–2h):** read-only rootfs, tmpfs, pids_limit, ulimits, token chmod doc. All zero-risk additions. → Tighter defaults, no behavior change for users. *(shipped: PR #3)*
+4. **SECURITY.md + threat model (1h):** write it down. → Sets expectations honestly. *(shipped: PR #4)*
+5. **Network egress allowlist (half-day):** sidecar proxy + compose overlay. → The big security win. Shipped as opt-in `HARDENED=1`. *(shipped: PR #5)*
+6. **CI + polish:** hadolint, compose lint, trivy, CONTRIBUTING.md, issue templates. Also adds `apt-get upgrade` in the Dockerfile to pull Debian security patches, plus `.hadolint.yaml` and `.trivyignore` for documented exceptions. *(shipped: PR #6)*
 
 ---
 
