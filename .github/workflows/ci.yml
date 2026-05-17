@@ -41,7 +41,7 @@ jobs:
       - name: build image
         run: docker build -t claude_in_container:ci .
       - name: scan with trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: claude_in_container:ci
           severity: HIGH,CRITICAL

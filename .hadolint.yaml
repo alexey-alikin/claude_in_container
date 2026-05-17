@@ -1,0 +1,7 @@
+ignored:
+  # Version pinning is intentionally not done in this repo (PLAN.md §6 #4):
+  # claude-code is installed at @latest so users get current releases.
+  # Same logic for the apt and apk packages.
+  - DL3008  # apt-get install: pin versions
+  - DL3016  # npm install: pin versions
+  - DL3018  # apk add: pin versions
