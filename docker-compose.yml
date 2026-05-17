@@ -13,6 +13,8 @@ services:
     volumes:
       - ./projects/${PROJECT:?set PROJECT env var, or use ./claude.sh}:/workspace
       - ./claude_home:/home/claudeuser
+    networks:
+      - egress
     cap_drop:
       - ALL
     security_opt:
@@ -27,3 +29,9 @@ services:
         hard: 16384
     mem_limit: 2g
     cpus: 1.0
+
+networks:
+  # Named so the hardened overlay can flip it to internal:true.
+  # In default mode this is a normal bridge network with internet access.
+  egress:
+    driver: bridge

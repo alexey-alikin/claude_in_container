@@ -3,6 +3,11 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+compose_args=(-f docker-compose.yml)
+if [[ "${HARDENED:-0}" == "1" ]]; then
+  compose_args+=(-f docker-compose.hardened.yml)
+fi
+
 usage() {
   cat <<'EOF'
 Usage: ./claude.sh <command> [args]
@@ -16,10 +21,13 @@ Commands:
 
 Project names: letters, digits, underscore, hyphen only.
 
+Set HARDENED=1 to also apply docker-compose.hardened.yml (network allowlist).
+
 Examples:
   ./claude.sh new my-api
   ./claude.sh shell my-api
   ./claude.sh run my-api -- -p "explain this repo"
+  HARDENED=1 ./claude.sh shell my-api
 EOF
 }
 
@@ -73,7 +81,7 @@ case "$cmd" in
     name="${1:-}"
     require_name "$name"
     require_exists "$name"
-    PROJECT="$name" docker compose run --rm claude
+    PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude
     ;;
   run)
     name="${1:-}"
@@ -83,7 +91,7 @@ case "$cmd" in
       shift
     fi
     require_exists "$name"
-    PROJECT="$name" docker compose run --rm claude claude "$@"
+    PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
     ;;
   *)
     echo "error: unknown command '$cmd'" >&2

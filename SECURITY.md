@@ -21,7 +21,7 @@ It is **not** a replacement for a VM or a hardened sandbox. Docker shares the ho
 
 - **The mounted project folder.** Claude's entire job is to edit files in `./projects/<name>/`. A compromised or prompt-injected session can corrupt or delete anything in there. Keep the project under version control and push often.
 - **OAuth-token theft via filesystem.** The login from `/login` is stored under `./claude_home/`. Anyone with read access to that folder on your host (other user accounts, a backup with weak ACLs, a synced cloud folder) can use your Claude.ai subscription. See [Hardening recommendations](#hardening-recommendations) below for `chmod`.
-- **Network exfiltration.** The container currently has full outbound internet access. A prompt-injected Claude could `curl` your project files to an attacker-controlled endpoint. A network-allowlist overlay is on the roadmap; until then, assume uncontrolled egress.
+- **Network exfiltration (default mode).** In default mode the container has full outbound internet access. A prompt-injected Claude could `curl` your project files to an attacker-controlled endpoint. Use [hardened mode](#use-hardened-mode-network-allowlist) below for an opt-in egress allowlist that mitigates this.
 - **Compromise of the Docker daemon or anyone in the `docker` group.** On Linux, anyone in the `docker` group has root-equivalent access to the host. The container cannot defend against that.
 - **Supply-chain attacks.** A compromised release of `@anthropic-ai/claude-code`, the `node:20-slim` base image, or any package Claude installs into your project can bypass everything here. Pinning reduces but does not eliminate this risk.
 - **Host-level compromise.** This is a container, not a VM. If your host kernel is exploited or the Docker daemon itself is compromised, the container's protections do not apply.
@@ -29,6 +29,20 @@ It is **not** a replacement for a VM or a hardened sandbox. Docker shares the ho
 ## Hardening recommendations
 
 Opt-in steps beyond the repo's defaults.
+
+### Use hardened mode (network allowlist)
+
+```bash
+HARDENED=1 ./claude.sh shell <project>
+```
+
+This applies the `docker-compose.hardened.yml` overlay, which moves the `claude` container onto an internal-only Docker network and routes outbound HTTP/HTTPS through a `tinyproxy` sidecar that enforces a domain allowlist (see [`hardened/filter`](hardened/filter)). Hosts not on the list are blocked. Non-HTTP traffic (SSH, raw sockets) has no path to the outside at all.
+
+Caveats:
+
+- Hostname matching only — `tinyproxy` does not decrypt TLS, so any path on an allowed host is reachable. The allowlist is a strong defense against arbitrary exfiltration, not a content filter.
+- Tools that ignore `HTTP_PROXY`/`HTTPS_PROXY` cannot reach the internet in hardened mode. For Claude Code and standard package managers this is what you want.
+- Edit `hardened/filter` and rebuild the proxy (`docker compose -f docker-compose.yml -f docker-compose.hardened.yml build egress-proxy`) when you need to add a host.
 
 ### Lock down the OAuth credentials
 
@@ -64,5 +78,4 @@ The Docker daemon can remap container UIDs to a separate range on the host (`/et
 
 Tracked in `PLAN.md`:
 
-- A network-egress allowlist via a sidecar proxy, shipped as an opt-in `docker-compose.hardened.yml` overlay.
 - CI hooks: `hadolint` on the `Dockerfile`, `docker compose config` validation, and image vulnerability scanning (e.g. `trivy`).
