@@ -1,6 +1,6 @@
 # Build summary
 
-Snapshot of the repo at phase 5. Intended for handing context to another AI or onboarding a new human reviewer quickly. For the evolving roadmap, see `PLAN.md`; for the security threat model, see `SECURITY.md`.
+Snapshot of the repo. Intended for handing context to another AI or onboarding a new human reviewer quickly. For the planning history and locked design decisions, see `design-decisions.md` in this directory; for the security threat model, see `SECURITY.md` at the repo root.
 
 ## What this repo is
 
@@ -21,7 +21,8 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 | `claude_home/` | OAuth state, persisted across container restarts. Entirely gitignored. |
 | `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode only). Real `.env` is gitignored. |
 | `LICENSE` | MIT. |
-| `README.md`, `SECURITY.md`, `PLAN.md`, `CONTRIBUTING.md` | User-facing docs, roadmap, and contributor guide. |
+| `README.md`, `SECURITY.md`, `CONTRIBUTING.md` | User-facing docs and contributor guide (kept at the root because GitHub surfaces `SECURITY.md` and `CONTRIBUTING.md` automatically). |
+| `docs/design-decisions.md` | Planning history and locked design decisions for each phase. |
 | `.github/workflows/ci.yml` | GitHub Actions: hadolint on both Dockerfiles, `docker compose config` for default + hardened overlay, trivy image scan (HIGH+CRITICAL, fails CI; table output to log). |
 | `.github/ISSUE_TEMPLATE/` | Bug-report and feature-request forms, plus `config.yml` that disables blank issues and routes security reports to `SECURITY.md`. |
 | `.hadolint.yaml` | Ignores DL3005/DL3008/DL3016/DL3018 — the version-pinning rules and `apt-get upgrade`, each documented inline with the reason. |

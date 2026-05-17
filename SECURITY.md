@@ -76,6 +76,4 @@ The Docker daemon can remap container UIDs to a separate range on the host (`/et
 
 ## Future improvements
 
-Tracked in `PLAN.md`:
-
-- CI hooks: `hadolint` on the `Dockerfile`, `docker compose config` validation, and image vulnerability scanning (e.g. `trivy`).
+See `docs/design-decisions.md` for the full planning history. As of this writing, the planned phases (foundation, multi-project, hardening, threat model, network allowlist, CI) have all shipped — improvements from here are issue-driven.
