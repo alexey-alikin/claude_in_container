@@ -21,7 +21,9 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 | `claude_home/` | OAuth state, persisted across container restarts. Entirely gitignored. |
 | `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode only). Real `.env` is gitignored. |
 | `LICENSE` | MIT. |
-| `README.md`, `SECURITY.md`, `PLAN.md` | User-facing docs and roadmap. |
+| `README.md`, `SECURITY.md`, `PLAN.md`, `CONTRIBUTING.md` | User-facing docs, roadmap, and contributor guide. |
+| `.github/workflows/ci.yml` | GitHub Actions: hadolint on both Dockerfiles, `docker compose config` for default + hardened overlay, trivy image scan (HIGH+CRITICAL, fails CI; SARIF uploaded as artifact). |
+| `.github/ISSUE_TEMPLATE/` | Bug-report and feature-request forms, plus `config.yml` that disables blank issues and routes security reports to `SECURITY.md`. |
 | `docs/build-summary.md`, `docs/test-plan.md` | Meta-docs (this file and the test plan). |
 
 ## How a user interacts with it
@@ -70,7 +72,6 @@ Explicitly NOT protected (see `SECURITY.md` for the full list):
 
 - `@anthropic-ai/claude-code` is not version-pinned (decision: accept `latest` drift, document the manual pin step in README troubleshooting if it ever breaks).
 - The hardened-mode allowlist is HTTP/HTTPS-only and hostname-based; `tinyproxy` does not decrypt TLS.
-- No CI in repo yet (planned: hadolint, compose lint, trivy scan).
 - No `curl`/`wget` in the base image. Network-connectivity tests in `docs/test-plan.md` use a small `node` helper.
 
 ## Phase history
@@ -82,3 +83,4 @@ Each phase shipped as its own PR. Source of truth is `git log`; this is the elev
 3. Hardening pass: read-only rootfs, tmpfs, pids/fd limits, `chmod` recommendation.
 4. `SECURITY.md` threat model.
 5. Hardened-mode overlay with `tinyproxy` egress allowlist; `docs/` meta-docs.
+6. CI (hadolint, compose lint, trivy SARIF), `CONTRIBUTING.md`, GitHub issue templates.
