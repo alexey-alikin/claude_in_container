@@ -63,6 +63,47 @@ Run a one-shot Claude command (headless mode, requires `CLAUDE_CODE_OAUTH_TOKEN`
 
 The container's `/workspace` is bind-mounted to `./projects/my-project/` on your host. Put your code there; edits sync both ways instantly.
 
+### Pushing your work to a remote
+
+The container has `git` installed, so `git init`, `git add`, and `git commit` work inside it with no extra setup. **Pushing** to GitHub is where you choose how much you want to trust Claude with your credentials.
+
+**Option A — push from the host (recommended).** No credentials enter the container, so a prompt-injected session cannot push anywhere.
+
+1. Ask Claude to do the work on a feature branch (not `main`):
+
+   > "Create a branch `feat/X`, make the changes, commit them with a clear message. Do not push."
+
+   Claude commits locally inside the container; because `/workspace` is bind-mounted, those commits are immediately visible on the host.
+
+2. On the host, open a second terminal and finish the workflow yourself:
+
+   ```bash
+   cd projects/my-project
+   git push -u origin feat/X
+   # …review on GitHub, merge the PR…
+   git checkout main && git pull
+   git branch -d feat/X
+   ```
+
+This works with your existing host setup — whatever SSH key, agent, or `gh` login you already use. Nothing about it is container-aware.
+
+**Option B — let Claude push directly (more convenient, narrower trust).** Requires a token in `.env`.
+
+1. Create a [GitHub fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to the one repo you're working on, with `Contents: Read & write` (add `Pull requests: Read & write` if you also want Claude to open PRs). Set a 30–90 day expiry.
+2. Add it to `.env`:
+
+   ```
+   GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+   ```
+3. Inside the container, point the remote at an HTTPS URL that uses the token, then push as normal:
+
+   ```bash
+   git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/you/my-project.git
+   git push -u origin feat/X
+   ```
+
+A prompt-injected session can use this token within its scope (one repo, the permissions you granted). Keep the scope narrow and rotate or revoke from GitHub Settings if anything looks off. See [SECURITY.md](SECURITY.md#giving-git-access-to-the-container) for the full trade-off and why mounting `~/.ssh` is not recommended.
+
 Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help` shows full usage.
 
 ## Authentication
