@@ -89,11 +89,19 @@ This works with your existing host setup — whatever SSH key, agent, or `gh` lo
 
 **Option B — let Claude push directly (more convenient, narrower trust).** Requires a token in `.env`.
 
-1. Create a [GitHub fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to the one repo you're working on, with `Contents: Read & write` (add `Pull requests: Read & write` if you also want Claude to open PRs). Set a 30–90 day expiry.
+1. Create a GitHub fine-grained personal access token (one per project, narrowly scoped):
+   1. Open <https://github.com/settings/tokens?type=beta> (or GitHub → your avatar → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**).
+   2. Click **Generate new token**.
+   3. **Token name:** something descriptive, e.g. `claude_in_container — my-project`.
+   4. **Expiration:** 30–90 days. Short expiries mean a leaked token self-heals.
+   5. **Resource owner:** your user (or the org that owns the repo).
+   6. **Repository access:** **Only select repositories** → pick the single repo Claude will push to. Do **not** pick `All repositories`.
+   7. **Repository permissions:** set `Contents` to **Read and write**. If you also want Claude to open PRs, set `Pull requests` to **Read and write** too. Leave everything else as `No access`. `Metadata: Read-only` is granted automatically — that's fine.
+   8. Click **Generate token** and copy the value immediately (GitHub only shows it once). It looks like `github_pat_…` (fine-grained) or `ghp_…` (classic).
 2. Add it to `.env`:
 
    ```
-   GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+   GITHUB_TOKEN=github_pat_xxxxxxxxxxxxxxxxxxxx
    ```
 3. Inside the container, point the remote at an HTTPS URL that uses the token, then push as normal:
 
