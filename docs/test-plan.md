@@ -174,7 +174,56 @@ test_url https://example.com
 
 **Expected:** all three print a real status line from the upstream server (e.g. `-> 200`, `-> 301`, `-> 404`). None print `FAIL`. A 404 from `api.anthropic.com` is fine — it means the request reached the upstream, which is what this step verifies.
 
-### 1.9 Headless mode — optional, requires OAuth token
+### 1.9 `make install` puts a working `cic` launcher on the host
+
+On the host (not inside the container):
+
+```bash
+make install
+ls -la ~/.local/bin/cic
+cat ~/.local/bin/cic
+```
+
+**Expected:**
+
+- `~/.local/bin/cic` exists, is executable, and its body is a 3-line bash script that ends with `exec "<absolute path to this repo>/claude.sh" "$@"`.
+- If `~/.local/bin` is not already in `PATH`, `make install` prints a warning with the `export PATH=...` line to add.
+
+Then verify the launcher actually invokes the wrapper from a different working directory:
+
+```bash
+cd /tmp
+PATH="$HOME/.local/bin:$PATH" cic help | head -3
+PATH="$HOME/.local/bin:$PATH" cic list
+```
+
+**Expected:** `cic help` prints the wrapper's `Usage: ./claude.sh ...` banner; `cic list` prints the same project list as `./claude.sh list` would from the repo root (at minimum `example`). The `PATH=` prefix is only needed for this test if `~/.local/bin` is not already on your `PATH`.
+
+### 1.10 `make uninstall` removes the launcher safely
+
+Happy path:
+
+```bash
+make uninstall
+ls ~/.local/bin/cic 2>&1 || echo "(gone)"
+```
+
+**Expected:** prints `removed ~/.local/bin/cic`; the file is gone. A second `make uninstall` prints `not installed; nothing to do` and exits 0.
+
+Refusal path — the launcher must not delete a file it didn't install:
+
+```bash
+make install
+# corrupt the launcher so it points at a fake path:
+printf '%s\n' '#!/usr/bin/env bash' 'exec "/elsewhere/claude.sh" "$@"' > ~/.local/bin/cic
+chmod +x ~/.local/bin/cic
+make uninstall ; echo "exit=$?"
+ls ~/.local/bin/cic    # still there
+```
+
+**Expected:** `make uninstall` prints `error: ... does not reference <repo>/claude.sh; refusing to remove` and exits non-zero; the file is still present. Clean up afterward with `rm ~/.local/bin/cic`.
+
+### 1.11 Headless mode — optional, requires OAuth token
 
 ```bash
 # On the host, generate the token from an interactive shell first:

@@ -22,6 +22,19 @@ claude        # first run prompts you for login (theme + browser auth link)
 
 Credentials are written to `./claude_home/` on the host and reused by every later run.
 
+## Install (optional)
+
+To call the wrapper from any directory as `cic` instead of `./claude.sh`:
+
+```bash
+make install      # installs ~/.local/bin/cic, a small launcher that execs this repo's claude.sh
+make uninstall    # removes ~/.local/bin/cic (only if it points to this repo)
+```
+
+Both targets run on your **host** machine — `~/.local/bin/cic` is created in your host home directory, not inside the container. The launcher is just a 3-line bash script that execs this checkout's `claude.sh`, which in turn drives `docker compose`. Nothing about the container image or `claude_home/` changes.
+
+After install you can run `cic shell example`, `cic new my-api`, etc. from anywhere. If `~/.local/bin` is not in your `PATH`, `make install` prints a warning with the line to add to your shell rc. The launcher hardcodes the absolute path to this checkout, so if you move the repo, re-run `make install`.
+
 ## Wrapper commands
 
 | Command | What it does |
