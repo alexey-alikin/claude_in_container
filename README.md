@@ -20,7 +20,7 @@ cd claude_in_container
 claude        # first run prompts you for login (theme + browser auth link)
 ```
 
-Credentials are written to `./claude_home/` on the host and reused by every later run. On later runs, you can skip the shell step and launch the TUI in one go: `./claude.sh run example`.
+Credentials are written to `./claude_home/` on the host and reused by every later run. On later runs, you can skip the shell step and start an interactive Claude session in one go: `./claude.sh run example`.
 
 ## Wrapper commands
 
@@ -29,11 +29,11 @@ Credentials are written to `./claude_home/` on the host and reused by every late
 | `./claude.sh list` | List all projects under `projects/` |
 | `./claude.sh new <name>` | Create `projects/<name>/` and `git init` inside it |
 | `./claude.sh shell <name>` | Open a bash shell in the container for `<name>` (use this to inspect the environment, run git, or debug) |
-| `./claude.sh run <name>` | Launch the interactive Claude TUI in the container for `<name>` — one-step alternative to `shell` + typing `claude` |
+| `./claude.sh run <name>` | Start an interactive Claude session in the container for `<name>` — one-step alternative to `shell` + typing `claude` |
 | `./claude.sh run <name> -- <args>` | Forward `<args>` to `claude` inside the container — e.g. `-- -p "..."` for headless one-shots |
 | `./claude.sh help` | Show usage |
 
-The `--` in `run` is optional: omit it to drop straight into the Claude TUI, or include it to forward flags to `claude` (e.g. `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"`). Project names must match `[a-zA-Z0-9_-]+`.
+The `--` in `run` is optional: omit it to start an interactive Claude session, or include it to forward flags to `claude` (e.g. `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"`). Project names must match `[a-zA-Z0-9_-]+`.
 
 ## Install (optional)
 
@@ -88,13 +88,13 @@ If `cic` prints `command not found` after `make install`, your shell can't see `
 
 ## Daily usage
 
-Launch the interactive Claude TUI directly in a project (one step):
+Start an interactive Claude session directly in a project (one step):
 
 ```bash
 ./claude.sh run my-project
 ```
 
-Open a bash shell in the container instead — useful for running `git`, inspecting `/workspace`, or debugging. From inside that shell you can also run `claude` to start the TUI:
+Open a bash shell in the container instead — useful for running `git`, inspecting `/workspace`, or debugging. From inside that shell you can also run `claude` to start an interactive session:
 
 ```bash
 ./claude.sh shell my-project

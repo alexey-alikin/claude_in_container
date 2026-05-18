@@ -19,7 +19,7 @@ Commands:
                                 (useful for inspecting the environment or
                                 running git commands)
   run   <name> [-- <args...>]   run `claude` in the container for <name>;
-                                with no args, launches the interactive TUI;
+                                with no args, starts an interactive session;
                                 with `-- <args>`, forwards <args> to claude
                                 (e.g. `-- -p "..."` for headless mode)
   help                          show this help
@@ -31,7 +31,7 @@ Set HARDENED=1 to also apply docker-compose.hardened.yml (network allowlist).
 Examples:
   ./claude.sh new my-api
   ./claude.sh shell my-api                       # bash shell in container
-  ./claude.sh run my-api                         # interactive Claude TUI
+  ./claude.sh run my-api                         # interactive Claude session
   ./claude.sh run my-api -- -p "explain this"    # headless one-shot
   HARDENED=1 ./claude.sh shell my-api
 EOF
