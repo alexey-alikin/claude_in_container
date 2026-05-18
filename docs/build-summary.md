@@ -35,7 +35,7 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 # First-time setup
 git clone <repo>
 ./claude.sh shell example       # interactive bash in the container
-claude                          # then /login (persists to claude_home/)
+claude                          # follow the first-run login prompts (persists to claude_home/)
 exit
 
 # Daily use

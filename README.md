@@ -5,7 +5,7 @@ Run [Claude Code](https://docs.anthropic.com/claude-code) inside a Docker contai
 ## Prerequisites
 
 - Docker Engine and Compose v2 — install instructions at https://docs.docker.com/engine/install/
-- On Linux, your user must be in the `docker` group (or use rootless Docker)
+- On Linux, your user must be in the `docker` group (or use rootless Docker). To add yourself: `sudo usermod -aG docker $USER`, then log out and back in (or run `newgrp docker` in the current shell).
 
 ## Quick start
 
@@ -17,7 +17,7 @@ cd claude_in_container
 ./claude.sh shell example
 
 # Inside the container, log in once:
-claude        # then run /login and follow the prompts
+claude        # first run prompts you for login (theme + browser auth link)
 ```
 
 Credentials are written to `./claude_home/` on the host and reused by every later run.
@@ -56,7 +56,7 @@ Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help
 
 Two modes, pick whichever you need:
 
-**Subscription (interactive).** Run `claude` inside the container, type `/login`, complete the browser flow. Credentials persist in `./claude_home/`. No `.env` file needed.
+**Subscription (interactive).** Run `claude` inside the container. On first start it prompts you through login (theme picker, then a browser auth link; exact UX varies by version). Credentials persist in `./claude_home/`, so later runs skip the flow. No `.env` file needed.
 
 **Headless (`claude -p "..."`).** Requires an OAuth token in a `.env` file:
 
@@ -72,14 +72,14 @@ cp .env.example .env
 Two files in this repo contain credentials that grant access to your Claude account. Both are already gitignored — keep them that way and never share them.
 
 - **`.env`** — holds `CLAUDE_CODE_OAUTH_TOKEN`. Ignored by `.gitignore` at the repo root.
-- **`claude_home/`** — holds the OAuth credentials saved by `/login`. Ignored by `claude_home/.gitignore` (everything inside the folder is excluded).
+- **`claude_home/`** — holds the OAuth credentials saved during login. Ignored by `claude_home/.gitignore` (everything inside the folder is excluded).
 
 A leaked token lets anyone use your Claude.ai subscription, so:
 
 - Don't remove those `.gitignore` entries.
 - Don't paste these files into chat tools, screenshots, gists, or pastebins.
 - If you fork or copy this repo, double-check the `.gitignore` files came along.
-- If you accidentally commit a token, rotate it immediately by deleting `claude_home/` and re-running `/login` (and revoke any leaked `CLAUDE_CODE_OAUTH_TOKEN` from your Anthropic account).
+- If you accidentally commit a token, rotate it immediately by deleting `claude_home/` and running `claude` again to redo the login flow (and revoke any leaked `CLAUDE_CODE_OAUTH_TOKEN` from your Anthropic account).
 
 On a shared host (laptop with multiple user accounts, dev server, etc.), also restrict filesystem permissions on `claude_home/` so other users on the same machine can't read your OAuth credentials:
 
@@ -165,7 +165,7 @@ RUN npm install -g @anthropic-ai/claude-code@<version>
 
 then `docker compose build` again.
 
-**Login stopped working.** Delete the contents of `./claude_home/` and run `claude` → `/login` again.
+**Login stopped working.** Delete the contents of `./claude_home/` and run `claude` again — the next start re-prompts for login.
 
 ## License
 
