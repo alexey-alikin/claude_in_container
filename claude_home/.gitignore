@@ -4,3 +4,8 @@
 
 # But keep this .gitignore file
 !.gitignore
+
+# And ship the default Claude Code instructions so the AI starts each
+# session aware of the container sandbox.
+!.claude/
+!.claude/CLAUDE.md
