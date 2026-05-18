@@ -13,11 +13,16 @@ usage() {
 Usage: ./claude.sh <command> [args]
 
 Commands:
-  list                       list all projects
-  new   <name>               create projects/<name> and git init it
-  shell <name>               open a bash shell in the container for <name>
-  run   <name> -- <args...>  run `claude <args>` in the container for <name>
-  help                       show this help
+  list                          list all projects
+  new   <name>                  create projects/<name> and git init it
+  shell <name>                  open a bash shell in the container for <name>
+                                (useful for inspecting the environment or
+                                running git commands)
+  run   <name> [-- <args...>]   run `claude` in the container for <name>;
+                                with no args, launches the interactive TUI;
+                                with `-- <args>`, forwards <args> to claude
+                                (e.g. `-- -p "..."` for headless mode)
+  help                          show this help
 
 Project names: letters, digits, underscore, hyphen only.
 
@@ -25,8 +30,9 @@ Set HARDENED=1 to also apply docker-compose.hardened.yml (network allowlist).
 
 Examples:
   ./claude.sh new my-api
-  ./claude.sh shell my-api
-  ./claude.sh run my-api -- -p "explain this repo"
+  ./claude.sh shell my-api                       # bash shell in container
+  ./claude.sh run my-api                         # interactive Claude TUI
+  ./claude.sh run my-api -- -p "explain this"    # headless one-shot
   HARDENED=1 ./claude.sh shell my-api
 EOF
 }
