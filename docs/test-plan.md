@@ -223,7 +223,42 @@ ls ~/.local/bin/cic    # still there
 
 **Expected:** `make uninstall` prints `error: ... does not reference <repo>/claude.sh; refusing to remove` and exits non-zero; the file is still present. Clean up afterward with `rm ~/.local/bin/cic`.
 
-### 1.11 Headless mode — optional, requires OAuth token
+### 1.11 Git HTTPS to GitHub works (no credentials)
+
+Inside `./claude.sh shell example`:
+
+```bash
+git ls-remote https://github.com/octocat/Hello-World.git | head -3
+```
+
+**Expected:** prints the first few refs (`HEAD`, `refs/heads/master`, …) and exits 0. No `server certificate verification failed. CAfile: none CRLfile: none` error. This verifies the `ca-certificates` bundle is installed and trusted, so git can validate GitHub's TLS cert without falling back to `GIT_SSL_NO_VERIFY=1`.
+
+### 1.12 `GITHUB_TOKEN` reaches the container when set in `.env` — optional
+
+Back up your `.env` first if it has real values. Then on the host:
+
+```bash
+printf 'GITHUB_TOKEN=test-token-123\n' >> .env
+./claude.sh shell example
+```
+
+Inside the container:
+
+```bash
+printenv GITHUB_TOKEN     # → test-token-123
+```
+
+**Expected:** the value matches what was in `.env`. Exit the shell and remove the line from `.env` afterward.
+
+If you have a fine-grained PAT (see README → Pushing your work to a remote, Option B), additionally verify the URL-embedded token works for a private repo you own:
+
+```bash
+git ls-remote https://x-access-token:${GITHUB_TOKEN}@github.com/<you>/<your-private-repo>.git | head -3
+```
+
+**Expected:** prints refs and exits 0. A 401/403 means the token scope is too narrow or expired, not a container bug.
+
+### 1.13 Headless mode — optional, requires OAuth token
 
 ```bash
 # On the host, generate the token from an interactive shell first:
