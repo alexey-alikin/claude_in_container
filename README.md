@@ -221,6 +221,20 @@ You can freely `git init`, `git remote add`, and `git push` inside any project f
 
 The compose file still works directly if you prefer: `PROJECT=my-api docker compose run --rm claude`. The wrapper is just sugar on top.
 
+## Extending the container (advanced)
+
+The `Dockerfile` ships with a deliberately minimal toolset: `git`, `node`, and `@anthropic-ai/claude-code`. If your project needs more — `python3`, `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
+
+```bash
+docker compose build
+```
+
+The next `./claude.sh shell <project>` or `./claude.sh run <project>` will pick up the new image. The default user inside the container is unprivileged, the filesystem is read-only, and no Linux capabilities are granted — so install everything at build time; runtime `sudo` / `apt install` will fail by design.
+
+**Don't add Docker access** (`docker.sock` mount, `dind`, `--privileged`). It looks convenient but effectively gives anything inside the sandbox root on your host, which defeats the entire reason this repo exists. If you need Claude to build container images, run those builds on the host outside the sandbox.
+
+**Claude is already aware of these constraints.** `claude_home/.claude/CLAUDE.md` is loaded automatically at the start of every session and tells the model about the writable paths, network restrictions, and how to ask you to add a missing tool rather than trying to install it itself. You can edit it to layer your own preferences on top.
+
 ## Security model (short version)
 
 What the container protects against:
