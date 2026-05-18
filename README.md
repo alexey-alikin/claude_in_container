@@ -45,7 +45,45 @@ make uninstall    # removes ~/.local/bin/cic (only if it points to this repo)
 
 Both targets run on your **host** machine — `~/.local/bin/cic` is created in your host home directory, not inside the container. The launcher is just a 3-line bash script that execs this checkout's `claude.sh`, which in turn drives `docker compose`. Nothing about the container image or `claude_home/` changes.
 
-After install you can run `cic shell example`, `cic new my-api`, etc. from anywhere. If `~/.local/bin` is not in your `PATH`, `make install` prints a warning with the line to add to your shell rc. The launcher hardcodes the absolute path to this checkout, so if you move the repo, re-run `make install`.
+After install you can run `cic shell example`, `cic new my-api`, etc. from anywhere. If `~/.local/bin` is not on your `PATH`, `make install` prints a warning telling you to add it to your shell rc — see the walkthrough below. The launcher hardcodes the absolute path to this checkout, so if you move the repo, re-run `make install`.
+
+<details>
+<summary>Add <code>~/.local/bin</code> to your PATH (click to expand)</summary>
+
+If `cic` prints `command not found` after `make install`, your shell can't see `~/.local/bin` yet. The install itself worked — you just need to put that directory on your `PATH`.
+
+1. Check which shell you're using:
+
+   ```bash
+   echo $SHELL
+   ```
+
+   - `/bin/bash` (or `/usr/bin/bash`) → edit `~/.bashrc`
+   - `/bin/zsh` (or `/usr/bin/zsh`) — common on modern macOS — → edit `~/.zshrc`
+
+2. Append the line `make install` told you to the right rc file. For bash:
+
+   ```bash
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   ```
+
+   For zsh, swap `~/.bashrc` for `~/.zshrc`.
+
+3. Reload the rc file in your current terminal (or just open a new one):
+
+   ```bash
+   source ~/.bashrc    # or: source ~/.zshrc
+   ```
+
+4. Verify:
+
+   ```bash
+   which cic
+   ```
+
+   Should print `/home/<you>/.local/bin/cic` on Linux, or `/Users/<you>/.local/bin/cic` on macOS. Once that resolves, `cic shell example` will work from any directory.
+
+</details>
 
 ## Daily usage
 
