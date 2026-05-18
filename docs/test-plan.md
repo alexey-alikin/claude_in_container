@@ -6,7 +6,7 @@ Manual smoke tests for the repo. Two parts: **basic mode** (default) and **harde
 
 - Docker Engine + Compose v2 are installed and your user can run `docker`.
 - You have cloned the repo and `cd`'d into it.
-- A Claude.ai account is available for the `/login` step. Headless tests that need an OAuth token are clearly marked optional.
+- A Claude.ai account is available for the login step. Headless tests that need an OAuth token are clearly marked optional.
 
 ## Fresh-clone smoke test (release sanity check)
 
@@ -92,9 +92,10 @@ Inside the container (still in the shell from 1.2):
 
 ```bash
 claude
-# at the Claude prompt:
-/login
-# follow the browser flow on your host, paste the code back
+# on first run, claude prompts you through login automatically:
+#   - pick a theme
+#   - open the printed auth link on your host, complete the flow, paste the code back
+# (exact prompts may vary by claude-code version)
 /exit
 ```
 
@@ -120,7 +121,7 @@ Inside the new shell:
 claude
 ```
 
-**Expected:** Claude starts without prompting for `/login` — the credentials from 1.3 are reused. Type `/exit` to return to the shell.
+**Expected:** Claude starts without prompting for login — the credentials from 1.3 are reused. Type `/exit` to return to the shell.
 
 ### 1.5 Filesystem isolation (read-only rootfs)
 
