@@ -17,6 +17,7 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 | `hardened/tinyproxy.conf` | Listens on `0.0.0.0:8888`, `FilterDefaultDeny Yes`, `ConnectPort 443/563`. |
 | `hardened/filter` | Starter allowlist: Anthropic API/OAuth/telemetry, GitHub, npm, PyPI. |
 | `claude.sh` | Wrapper script. Subcommands: `new <name>`, `shell <name>`, `run <name> -- <args>`, `list`, `help`. Validates project names against `[a-zA-Z0-9_-]+`. Honors `HARDENED=1` env var to also apply the overlay. |
+| `Makefile` | Optional install/uninstall of a `~/.local/bin/cic` launcher that execs `claude.sh`, so the wrapper can be called as `cic ...` from any directory. `help` is the default target. Host-only; nothing about the container changes. |
 | `projects/` | Per-project workspaces, bind-mounted into the container. Everything inside is gitignored except `projects/example/` (whitelisted as a placeholder). |
 | `claude_home/` | OAuth state, persisted across container restarts. Entirely gitignored. |
 | `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode only). Real `.env` is gitignored. |

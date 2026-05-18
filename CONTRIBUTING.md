@@ -24,6 +24,8 @@ PROJECT=example docker compose -f docker-compose.yml -f docker-compose.hardened.
 
 The trivy image scan also runs in CI; you don't need to run it locally unless you're touching the Dockerfile or bumping the base image.
 
+Repo-level helpers (install/uninstall of the `cic` launcher, etc.) are surfaced via `make help`.
+
 ## Style
 
 - Shell scripts: keep them readable, prefer `set -euo pipefail`, quote variables.

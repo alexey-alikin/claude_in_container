@@ -22,6 +22,18 @@ claude        # first run prompts you for login (theme + browser auth link)
 
 Credentials are written to `./claude_home/` on the host and reused by every later run.
 
+## Wrapper commands
+
+| Command | What it does |
+| --- | --- |
+| `./claude.sh list` | List all projects under `projects/` |
+| `./claude.sh new <name>` | Create `projects/<name>/` and `git init` inside it |
+| `./claude.sh shell <name>` | Open a bash shell in the container for `<name>` |
+| `./claude.sh run <name> -- <args>` | Run `claude <args>` in the container for `<name>` |
+| `./claude.sh help` | Show usage |
+
+In `run`, the `--` separates wrapper arguments from arguments forwarded to `claude`. For example, `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"` inside the container for `my-api`. Project names must match `[a-zA-Z0-9_-]+`.
+
 ## Install (optional)
 
 To call the wrapper from any directory as `cic` instead of `./claude.sh`:
@@ -34,18 +46,6 @@ make uninstall    # removes ~/.local/bin/cic (only if it points to this repo)
 Both targets run on your **host** machine — `~/.local/bin/cic` is created in your host home directory, not inside the container. The launcher is just a 3-line bash script that execs this checkout's `claude.sh`, which in turn drives `docker compose`. Nothing about the container image or `claude_home/` changes.
 
 After install you can run `cic shell example`, `cic new my-api`, etc. from anywhere. If `~/.local/bin` is not in your `PATH`, `make install` prints a warning with the line to add to your shell rc. The launcher hardcodes the absolute path to this checkout, so if you move the repo, re-run `make install`.
-
-## Wrapper commands
-
-| Command | What it does |
-| --- | --- |
-| `./claude.sh list` | List all projects under `projects/` |
-| `./claude.sh new <name>` | Create `projects/<name>/` and `git init` inside it |
-| `./claude.sh shell <name>` | Open a bash shell in the container for `<name>` |
-| `./claude.sh run <name> -- <args>` | Run `claude <args>` in the container for `<name>` |
-| `./claude.sh help` | Show usage |
-
-In `run`, the `--` separates wrapper arguments from arguments forwarded to `claude`. For example, `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"` inside the container for `my-api`. Project names must match `[a-zA-Z0-9_-]+`.
 
 ## Daily usage
 
@@ -63,7 +63,9 @@ Run a one-shot Claude command (headless mode, requires `CLAUDE_CODE_OAUTH_TOKEN`
 
 The container's `/workspace` is bind-mounted to `./projects/my-project/` on your host. Put your code there; edits sync both ways instantly.
 
-### Pushing your work to a remote
+Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help` shows full usage.
+
+## Pushing your work to a remote
 
 The container has `git` installed, so `git init`, `git add`, and `git commit` work inside it with no extra setup. **Pushing** to GitHub is where you choose how much you want to trust Claude with your credentials.
 
@@ -71,7 +73,7 @@ The container has `git` installed, so `git init`, `git add`, and `git commit` wo
 
 1. Ask Claude to do the work on a feature branch (not `main`):
 
-   > "Create a branch `feat/X`, make the changes, commit them with a clear message. Do not push."
+   > "Create a branch `feat/add-login`, make the changes, commit them with a clear message. Do not push."
 
    Claude commits locally inside the container; because `/workspace` is bind-mounted, those commits are immediately visible on the host.
 
@@ -79,17 +81,21 @@ The container has `git` installed, so `git init`, `git add`, and `git commit` wo
 
    ```bash
    cd projects/my-project
-   git push -u origin feat/X
+   git push -u origin feat/add-login
    # …review on GitHub, merge the PR…
    git checkout main && git pull
-   git branch -d feat/X
+   git branch -d feat/add-login
    ```
 
 This works with your existing host setup — whatever SSH key, agent, or `gh` login you already use. Nothing about it is container-aware.
 
 **Option B — let Claude push directly (more convenient, narrower trust).** Requires a token in `.env`.
 
-1. Create a GitHub fine-grained personal access token (one per project, narrowly scoped):
+1. Create a fine-grained GitHub PAT scoped to a single repo with `Contents: Read & write` (add `Pull requests: Read & write` if Claude should open PRs) and a 30–90 day expiry.
+
+   <details>
+   <summary>Step-by-step walkthrough on github.com (click to expand)</summary>
+
    1. Open <https://github.com/settings/tokens?type=beta> (or GitHub → your avatar → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**).
    2. Click **Generate new token**.
    3. **Token name:** something descriptive, e.g. `claude_in_container — my-project`.
@@ -98,6 +104,9 @@ This works with your existing host setup — whatever SSH key, agent, or `gh` lo
    6. **Repository access:** **Only select repositories** → pick the single repo Claude will push to. Do **not** pick `All repositories`.
    7. **Repository permissions:** set `Contents` to **Read and write**. If you also want Claude to open PRs, set `Pull requests` to **Read and write** too. Leave everything else as `No access`. `Metadata: Read-only` is granted automatically — that's fine.
    8. Click **Generate token** and copy the value immediately (GitHub only shows it once). It looks like `github_pat_…` (fine-grained) or `ghp_…` (classic).
+
+   </details>
+
 2. Add it to `.env`:
 
    ```
@@ -107,12 +116,10 @@ This works with your existing host setup — whatever SSH key, agent, or `gh` lo
 
    ```bash
    git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/you/my-project.git
-   git push -u origin feat/X
+   git push -u origin feat/add-login
    ```
 
 A prompt-injected session can use this token within its scope (one repo, the permissions you granted). Keep the scope narrow and rotate or revoke from GitHub Settings if anything looks off. See [SECURITY.md](SECURITY.md#giving-git-access-to-the-container) for the full trade-off and why mounting `~/.ssh` is not recommended.
-
-Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help` shows full usage.
 
 ## Authentication
 
@@ -131,17 +138,18 @@ cp .env.example .env
 
 ## Keep your secrets out of git
 
-Two files in this repo contain credentials that grant access to your Claude account. Both are already gitignored — keep them that way and never share them.
+Two paths in this repo can hold credentials. Both are already gitignored — keep them that way and never share them.
 
-- **`.env`** — holds `CLAUDE_CODE_OAUTH_TOKEN`. Ignored by `.gitignore` at the repo root.
-- **`claude_home/`** — holds the OAuth credentials saved during login. Ignored by `claude_home/.gitignore` (everything inside the folder is excluded).
+- **`.env`** — holds `CLAUDE_CODE_OAUTH_TOKEN` (Claude headless mode) and optionally `GITHUB_TOKEN` (if you use [Option B](#pushing-your-work-to-a-remote) for pushing). Ignored by `.gitignore` at the repo root.
+- **`claude_home/`** — holds the OAuth credentials saved during interactive login. Ignored by `claude_home/.gitignore` (everything inside the folder is excluded).
 
-A leaked token lets anyone use your Claude.ai subscription, so:
+A leaked Claude credential lets anyone use your Claude.ai subscription. A leaked `GITHUB_TOKEN` lets anyone push to (and read from) whatever repo you scoped it to. Treat both like passwords:
 
 - Don't remove those `.gitignore` entries.
 - Don't paste these files into chat tools, screenshots, gists, or pastebins.
 - If you fork or copy this repo, double-check the `.gitignore` files came along.
-- If you accidentally commit a token, rotate it immediately by deleting `claude_home/` and running `claude` again to redo the login flow (and revoke any leaked `CLAUDE_CODE_OAUTH_TOKEN` from your Anthropic account).
+- If you accidentally commit a `CLAUDE_CODE_OAUTH_TOKEN` or `claude_home/` contents, rotate by deleting `claude_home/` and re-running `claude` to redo the login flow; also revoke any leaked `CLAUDE_CODE_OAUTH_TOKEN` from your Anthropic account.
+- If you accidentally commit a `GITHUB_TOKEN`, revoke it at GitHub → Settings → Developer settings → Personal access tokens, then generate a new one and update `.env`.
 
 On a shared host (laptop with multiple user accounts, dev server, etc.), also restrict filesystem permissions on `claude_home/` so other users on the same machine can't read your OAuth credentials:
 
