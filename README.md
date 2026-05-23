@@ -13,7 +13,10 @@ Run [Claude Code](https://docs.anthropic.com/claude-code) inside a Docker contai
 git clone https://github.com/alexey-alikin/claude_in_container.git
 cd claude_in_container
 
-# First run: opens a shell inside the example project's container.
+# Build the container image (1–2 minutes the first time).
+./claude.sh build
+
+# Open a shell inside the example project's container.
 ./claude.sh shell example
 
 # Inside the container, log in once:
