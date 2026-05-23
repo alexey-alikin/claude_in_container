@@ -22,6 +22,10 @@ Commands:
                                 with no args, starts an interactive session;
                                 with `-- <args>`, forwards <args> to claude
                                 (e.g. `-- -p "..."` for headless mode)
+  build [<args>...]             rebuild the container image after editing the
+                                Dockerfile; forwards <args> to
+                                `docker compose build` (e.g. --no-cache,
+                                or a service name like `egress-proxy`)
   help                          show this help
 
 Project names: letters, digits, underscore, hyphen only.
@@ -33,6 +37,8 @@ Examples:
   ./claude.sh shell my-api                       # bash shell in container
   ./claude.sh run my-api                         # interactive Claude session
   ./claude.sh run my-api -- -p "explain this"    # headless one-shot
+  ./claude.sh build                              # rebuild after Dockerfile change
+  ./claude.sh build --no-cache                   # force full rebuild
   HARDENED=1 ./claude.sh shell my-api
 EOF
 }
@@ -98,6 +104,12 @@ case "$cmd" in
     fi
     require_exists "$name"
     PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
+    ;;
+  build)
+    # PROJECT must be set for compose to interpolate the volume mount,
+    # even though `build` doesn't actually mount anything. Use `example`
+    # since projects/example/ is committed to the repo.
+    PROJECT=example docker compose "${compose_args[@]}" build "$@"
     ;;
   *)
     echo "error: unknown command '$cmd'" >&2
