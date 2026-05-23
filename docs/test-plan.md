@@ -19,7 +19,7 @@ git clone https://github.com/alexey-alikin/claude_in_container.git
 cd claude_in_container
 
 # Force a rebuild from scratch (no layer cache reuse).
-PROJECT=example docker compose build --no-cache claude
+./claude.sh build --no-cache
 
 # First start — should land you in /workspace as claudeuser.
 ./claude.sh shell example
@@ -250,13 +250,21 @@ printenv GITHUB_TOKEN     # → test-token-123
 
 **Expected:** the value matches what was in `.env`. Exit the shell and remove the line from `.env` afterward.
 
-If you have a fine-grained PAT (see README → Pushing your work to a remote, Option B), additionally verify the URL-embedded token works for a private repo you own:
+If you have a fine-grained PAT (see README → Pushing your work to a remote, Option B), additionally verify the shipped `claude_home/.gitconfig` auto-rewrites SSH GitHub URLs to HTTPS and supplies the token from the env var. Replace the placeholder with the value from `.env`, then inside the container:
 
 ```bash
-git ls-remote https://x-access-token:${GITHUB_TOKEN}@github.com/<you>/<your-private-repo>.git | head -3
+git ls-remote git@github.com:<you>/<your-private-repo>.git | head -3
 ```
 
-**Expected:** prints refs and exits 0. A 401/403 means the token scope is too narrow or expired, not a container bug.
+**Expected:** prints refs and exits 0, with no SSH error and without you having to construct a token URL. This proves both the `url.insteadOf` rewrite and the credential helper are wired up. A 401/403 means the token scope is too narrow or expired, not a container bug.
+
+Then verify the helper fails closed rather than silently when the token is missing:
+
+```bash
+GITHUB_TOKEN= git ls-remote git@github.com:<you>/<your-private-repo>.git
+```
+
+**Expected:** exits non-zero with `fatal: Authentication failed` (or similar HTTP 401 message). It must NOT hang waiting for input and must NOT succeed — a regression where the helper silently outputs empty credentials would let unrelated code paths look like they're working when they aren't.
 
 ### 1.13 Headless mode — optional, requires OAuth token
 
