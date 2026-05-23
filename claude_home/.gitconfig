@@ -1,0 +1,36 @@
+# Default git config for the claude_in_container sandbox.
+#
+# The container intentionally ships without an `ssh` binary (smaller attack
+# surface, and SSH key plumbing would broaden trust well past a scoped PAT).
+# Many users clone private repos on the host with the default SSH URL
+# (`git@github.com:owner/repo.git`), then expect `git pull/push` to work
+# inside the container — without this file, those operations would fail with
+# "cannot run ssh".
+#
+# The two settings below close that gap for GitHub: SSH URLs are silently
+# rewritten to HTTPS, and the credential helper supplies the token from the
+# `GITHUB_TOKEN` env var at request time. The token is never written to any
+# persisted file (.git/config, ~/.gitconfig, etc.).
+#
+# If `GITHUB_TOKEN` is unset, the helper outputs nothing and git fails with
+# a clear auth error — no silent fallback.
+
+# GitHub — active by default.
+[url "https://github.com/"]
+    insteadOf = git@github.com:
+[credential "https://github.com"]
+    helper = "!f() { test -n \"$GITHUB_TOKEN\" && echo username=x-access-token && echo password=$GITHUB_TOKEN; }; f"
+
+# GitLab — uncomment if you use it, and add GITLAB_TOKEN to your .env.
+# Personal access tokens authenticate against GitLab with the username
+# "oauth2" (not your GitLab username).
+# [url "https://gitlab.com/"]
+#     insteadOf = git@gitlab.com:
+# [credential "https://gitlab.com"]
+#     helper = "!f() { test -n \"$GITLAB_TOKEN\" && echo username=oauth2 && echo password=$GITLAB_TOKEN; }; f"
+
+# Other hosts (Bitbucket, self-hosted GitLab/Gitea, etc.) — same pattern:
+# add a `[url …]` rewrite mapping the SSH URL to HTTPS, plus a `[credential …]`
+# helper that reads your token env var. Bitbucket's username depends on token
+# type (`x-token-auth` for repo/workspace access tokens, your Bitbucket
+# username for app passwords).
