@@ -118,6 +118,8 @@ Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help
 
 The container has `git` installed, so `git init`, `git add`, and `git commit` work inside it with no extra setup. **Pushing** to GitHub is where you choose how much you want to trust Claude with your credentials.
 
+**Git identity (one-time, applies to both options below).** Any commit — whether Claude pushes it later or you do — needs a name and email. The container does not see your host `~/.gitconfig`, so on first invocation of `./claude.sh build`, `shell`, `run`, or `new`, the wrapper copies your host's `git config --global user.{name,email}` into `claude_home/.gitconfig.local` and prints what it did. If your host has no identity set, configure one with `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"` and re-run, or create `claude_home/.gitconfig.local` directly with a `[user]` block. Edit that file afterwards if you'd like Claude's commits to wear a marker identity such as `you+claude@example.com` so a glance at `git log` reveals which commits were autonomous. Set `CIC_SKIP_GIT_IDENTITY=1` to opt out of the bootstrap.
+
 **Option A — push from the host (recommended).** No credentials enter the container, so a prompt-injected session cannot push anywhere.
 
 1. Ask Claude to do the work on a feature branch (not `main`):

@@ -31,6 +31,8 @@ Commands:
 Project names: letters, digits, underscore, hyphen only.
 
 Set HARDENED=1 to also apply docker-compose.hardened.yml (network allowlist).
+Set CIC_SKIP_GIT_IDENTITY=1 to skip the first-run copy of your host git
+identity into claude_home/.gitconfig.local.
 
 Examples:
   ./claude.sh new my-api
@@ -68,6 +70,58 @@ require_exists() {
   fi
 }
 
+# Copy the host's git identity into claude_home/.gitconfig.local on first run
+# so that commits inside the container inherit the same author by default.
+# Idempotent — does nothing if the file already exists or CIC_SKIP_GIT_IDENTITY=1.
+bootstrap_git_identity() {
+  local target="claude_home/.gitconfig.local"
+
+  [[ "${CIC_SKIP_GIT_IDENTITY:-0}" == "1" ]] && return 0
+  [[ -e "$target" ]] && return 0
+
+  if ! command -v git >/dev/null 2>&1; then
+    echo "note: git not found on host; skipping identity bootstrap. Create $target manually with a [user] block before Claude commits." >&2
+    return 0
+  fi
+
+  local host_name host_email
+  host_name=$(git config --global --get user.name 2>/dev/null || true)
+  host_email=$(git config --global --get user.email 2>/dev/null || true)
+
+  if [[ -z "$host_name" || -z "$host_email" ]]; then
+    echo "note: host git identity not configured ('git config --global user.name/email' is unset)." >&2
+    echo "      Set it on the host, or create $target manually with a [user] block, before Claude commits." >&2
+    return 0
+  fi
+
+  cat > "$target" <<EOF
+# Auto-created by claude.sh on first run from your host's
+# 'git config --global user.{name,email}'. Edit to use a different identity
+# for commits Claude makes inside the container — for example, a marker
+# address like you+claude@example.com so 'git log' shows which commits
+# were made autonomously.
+
+[user]
+    name = $host_name
+    email = $host_email
+EOF
+
+  cat >&2 <<EOF
+First-time setup: copied your host git identity into the container so
+Claude can commit on your behalf:
+
+  name  = $host_name
+  email = $host_email
+
+  → $target
+
+Edit that file if you want a different identity for commits made inside
+the container. This only affects commit authorship — Claude still can't
+push from inside the container unless you set GITHUB_TOKEN in .env
+(see 'Pushing your work' in README).
+EOF
+}
+
 cmd="${1:-help}"
 shift || true
 
@@ -85,6 +139,7 @@ case "$cmd" in
       echo "error: projects/$name already exists" >&2
       exit 1
     fi
+    bootstrap_git_identity
     mkdir -p "projects/$name"
     (cd "projects/$name" && git init -q)
     echo "created projects/$name (git initialized)"
@@ -93,6 +148,7 @@ case "$cmd" in
     name="${1:-}"
     require_name "$name"
     require_exists "$name"
+    bootstrap_git_identity
     PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude
     ;;
   run)
@@ -103,12 +159,14 @@ case "$cmd" in
       shift
     fi
     require_exists "$name"
+    bootstrap_git_identity
     PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
     ;;
   build)
     # PROJECT must be set for compose to interpolate the volume mount,
     # even though `build` doesn't actually mount anything. Use `example`
     # since projects/example/ is committed to the repo.
+    bootstrap_git_identity
     PROJECT=example docker compose "${compose_args[@]}" build "$@"
     ;;
   *)

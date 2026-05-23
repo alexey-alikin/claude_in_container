@@ -34,3 +34,11 @@
 # helper that reads your token env var. Bitbucket's username depends on token
 # type (`x-token-auth` for repo/workspace access tokens, your Bitbucket
 # username for app passwords).
+
+# Per-host overrides — see ~/.gitconfig.local. The wrapper (`claude.sh`)
+# auto-creates that file on first invocation by copying the host's
+# `git config --global user.{name,email}`, so commits inside the container
+# inherit the same author identity by default. Git silently ignores this
+# include if the file doesn't exist.
+[include]
+    path = ~/.gitconfig.local
