@@ -138,7 +138,7 @@ The container has `git` installed, so `git init`, `git add`, and `git commit` wo
 
 This works with your existing host setup — whatever SSH key, agent, or `gh` login you already use. Nothing about it is container-aware.
 
-**Option B — let Claude read or write directly (more convenient, narrower trust).** Requires a token in `.env`. With `GITHUB_TOKEN` set, Claude can also `git clone` and `fetch` private repos using the same `https://x-access-token:${GITHUB_TOKEN}@github.com/owner/repo` URL pattern, scoped to whatever permissions you granted the token.
+**Option B — let Claude read or write directly (more convenient, narrower trust).** Requires a token in `.env`. With `GITHUB_TOKEN` set, every git operation against `github.com` — `clone`, `fetch`, `pull`, `push` — works inside the container without any URL surgery, even against repos cloned on the host with an SSH origin (`git@github.com:owner/repo.git`). The container's default `claude_home/.gitconfig` transparently rewrites SSH GitHub URLs to HTTPS and supplies the token from `GITHUB_TOKEN` at request time. The token is never written into any persisted file.
 
 1. Create a fine-grained GitHub PAT scoped to a single repo with `Contents: Read & write` (add `Pull requests: Read & write` if Claude should open PRs) and a 30–90 day expiry.
 
@@ -161,12 +161,16 @@ This works with your existing host setup — whatever SSH key, agent, or `gh` lo
    ```
    GITHUB_TOKEN=github_pat_xxxxxxxxxxxxxxxxxxxx
    ```
-3. Inside the container, point the remote at an HTTPS URL that uses the token, then push as normal:
+
+3. Inside the container, just use git normally:
 
    ```bash
-   git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/you/my-project.git
-   git push -u origin feat/add-login
+   git push -u origin feat/add-login    # SSH origin works — auto-rewritten to HTTPS
+   git pull                             # likewise
+   git clone git@github.com:you/other-repo.git   # also fine
    ```
+
+**Other git hosts (GitLab, Bitbucket, self-hosted).** The auto-rewrite only covers `github.com`. `claude_home/.gitconfig` ships with a commented-out GitLab block — uncomment it and add `GITLAB_TOKEN` to `.env` to enable. For Bitbucket or self-hosted servers, follow the same pattern in that file: add a `[url …]` rewrite mapping the SSH URL to HTTPS, plus a `[credential …]` helper that reads your token env var. Bitbucket's username depends on token type (`x-token-auth` for repo/workspace access tokens, your Bitbucket username for app passwords).
 
 A prompt-injected session can use this token within its scope (one repo, the permissions you granted). Keep the scope narrow and rotate or revoke from GitHub Settings if anything looks off. See [SECURITY.md](SECURITY.md#giving-git-access-to-the-container) for the full trade-off and why mounting `~/.ssh` is not recommended.
 

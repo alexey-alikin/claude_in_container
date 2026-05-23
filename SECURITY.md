@@ -42,14 +42,14 @@ Caveats:
 
 - Hostname matching only — `tinyproxy` does not decrypt TLS, so any path on an allowed host is reachable. The allowlist is a strong defense against arbitrary exfiltration, not a content filter.
 - Tools that ignore `HTTP_PROXY`/`HTTPS_PROXY` cannot reach the internet in hardened mode. For Claude Code and standard package managers this is what you want.
-- Edit `hardened/filter` and rebuild the proxy (`docker compose -f docker-compose.yml -f docker-compose.hardened.yml build egress-proxy`) when you need to add a host.
+- Edit `hardened/filter` and rebuild the proxy (`HARDENED=1 ./claude.sh build egress-proxy`) when you need to add a host.
 
 ### Giving git access to the container
 
 The container ships with `git` installed but no credentials. Two ways to handle pushing to a remote, in order of safety:
 
 - **Host-side push (recommended).** Have Claude commit to a feature branch inside the container, then `git push` from a terminal on your host. No credentials ever enter the container, so a prompt-injected session has no path to push anywhere. See [README → Pushing your work to a remote](README.md#pushing-your-work-to-a-remote) for the step-by-step.
-- **Fine-grained PAT in `.env`.** If you want Claude to read private repos or push directly, set `GITHUB_TOKEN` to a [GitHub fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to a single repo with the minimum permissions (`Contents: Read & write`, plus `Pull requests: Read & write` only if Claude should open PRs). Set a 30–90 day expiry. A prompt-injected session can still use the token, but only within its narrow scope; rotate or revoke from GitHub Settings if anything looks off.
+- **Fine-grained PAT in `.env`.** If you want Claude to read private repos or push directly, set `GITHUB_TOKEN` to a [GitHub fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to a single repo with the minimum permissions (`Contents: Read & write`, plus `Pull requests: Read & write` only if Claude should open PRs). Set a 30–90 day expiry. A prompt-injected session can still use the token, but only within its narrow scope; rotate or revoke from GitHub Settings if anything looks off. The shipped `claude_home/.gitconfig` rewrites SSH GitHub URLs to HTTPS and supplies the token from the env var at request time, so the token is never written into `.git/config` or any other persisted file — even though every git operation against `github.com` still works transparently.
 
 What **not** to do: avoid bind-mounting your host's `~/.ssh` directory or your global `~/.gitconfig` into the container. Your usual SSH key typically authenticates as you to every git host you've used (personal GitHub, work GitLab, internal Gitea, …) — a leak from a single prompt-injected session breaks all of them at once. A global `~/.gitconfig` can also pull in `[includeIf]` paths, signing-key references, and `[url] insteadOf` rewrites you didn't intend to expose.
 
@@ -69,7 +69,7 @@ The `Dockerfile` installs `latest`, which means rebuilds are not reproducible an
 RUN npm install -g @anthropic-ai/claude-code@<version>
 ```
 
-Then rebuild with `docker compose build`.
+Then rebuild with `./claude.sh build`.
 
 ### Pin the base image by digest
 

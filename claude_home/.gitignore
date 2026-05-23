@@ -9,3 +9,7 @@
 # session aware of the container sandbox.
 !.claude/
 !.claude/CLAUDE.md
+
+# And the default git config that auto-rewrites SSH GitHub URLs to HTTPS and
+# supplies GITHUB_TOKEN at request time. See the file itself for the why.
+!.gitconfig

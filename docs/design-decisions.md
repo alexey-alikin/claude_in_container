@@ -160,7 +160,7 @@ Short summary + link to SECURITY.md. Highlight: container, not VM; mount only
 the project dir; don't share `claude_home/` across users.
 
 ## Troubleshooting
-- "Permission denied" on claude_home → UID mismatch, rebuild with `UID=$(id -u) docker compose build`
+- "Permission denied" on claude_home → UID mismatch, rebuild with `UID=$(id -u) ./claude.sh build`
 - Token expired → delete `claude_home/.claude/.credentials.json` and re-login
 - …
 
