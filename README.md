@@ -31,6 +31,7 @@ Credentials are written to `./claude_home/` on the host and reused by every late
 | `./claude.sh shell <name>` | Open a bash shell in the container for `<name>` (use this to inspect the environment, run git, or debug) |
 | `./claude.sh run <name>` | Start an interactive Claude session in the container for `<name>` — one-step alternative to `shell` + typing `claude` |
 | `./claude.sh run <name> -- <args>` | Forward `<args>` to `claude` inside the container — e.g. `-- -p "..."` for headless one-shots |
+| `./claude.sh build [<args>]` | Rebuild the container image after editing the `Dockerfile`; forwards `<args>` to `docker compose build` (e.g. `--no-cache`, or a service name like `egress-proxy`) |
 | `./claude.sh help` | Show usage |
 
 The `--` in `run` is optional: omit it to start an interactive Claude session, or include it to forward flags to `claude` (e.g. `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"`). Project names must match `[a-zA-Z0-9_-]+`.
@@ -226,7 +227,7 @@ The compose file still works directly if you prefer: `PROJECT=my-api docker comp
 The `Dockerfile` ships with a deliberately minimal toolset: `git`, `node`, and `@anthropic-ai/claude-code`. If your project needs more — `python3`, `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
 
 ```bash
-docker compose build
+./claude.sh build
 ```
 
 The next `./claude.sh shell <project>` or `./claude.sh run <project>` will pick up the new image. The default user inside the container is unprivileged, the filesystem is read-only, and no Linux capabilities are granted — so install everything at build time; runtime `sudo` / `apt install` will fail by design.
@@ -269,7 +270,7 @@ In hardened mode the `claude` container is moved onto an internal-only Docker ne
 The allowlist lives in [`hardened/filter`](hardened/filter) — edit it to add hosts your projects need (e.g. `^crates\.io$` for Rust, `^rubygems\.org$` for Ruby), then rebuild the proxy:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.hardened.yml build egress-proxy
+HARDENED=1 ./claude.sh build egress-proxy
 ```
 
 Notes and limitations:
@@ -283,7 +284,7 @@ Notes and limitations:
 **Permission errors on `./claude_home/` or `./projects/` (Linux).** The container's user UID must match your host UID. Rebuild with your UID baked in:
 
 ```bash
-UID=$(id -u) docker compose build
+UID=$(id -u) ./claude.sh build
 ```
 
 **Claude Code update broke the container.** The Dockerfile installs `@anthropic-ai/claude-code` at `latest`. If a new release breaks things, pin a known-good version: edit `Dockerfile` line 4 to read
@@ -292,7 +293,7 @@ UID=$(id -u) docker compose build
 RUN npm install -g @anthropic-ai/claude-code@<version>
 ```
 
-then `docker compose build` again.
+then `./claude.sh build` again.
 
 **Login stopped working.** Delete the contents of `./claude_home/` and run `claude` again — the next start re-prompts for login.
 
