@@ -39,7 +39,7 @@ Then walk through Part 2.
 
 ## The `node` helper for connectivity tests
 
-The base image ships with `node` but not `curl`/`wget`. This helper uses Node's built-in `fetch` and routes through the proxy when `HTTPS_PROXY` is set (i.e. in hardened mode). Define it once at the start of any in-container shell:
+The base image ships with `node` and `curl` (but not `wget`). This helper uses Node's built-in `fetch` so it stays self-contained regardless of which HTTP tools are installed, and routes through the proxy when `HTTPS_PROXY` is set (i.e. in hardened mode). Define it once at the start of any in-container shell:
 
 ```bash
 test_url() {

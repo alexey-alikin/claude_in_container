@@ -10,7 +10,7 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 
 | Path | Purpose |
 | --- | --- |
-| `Dockerfile` | `node:20-slim` + `apt-get upgrade` for Debian security patches + `ca-certificates` and `git` (HTTPS git remotes need the CA bundle) + global install of `@anthropic-ai/claude-code` (at `latest`); creates non-root `claudeuser` whose UID matches the host via the `USER_UID` build arg. |
+| `Dockerfile` | `node:20-slim` + `apt-get upgrade` for Debian security patches + `ca-certificates`, `curl`, and `git` (HTTPS git remotes need the CA bundle; `curl` for hitting APIs and debugging connectivity) + global install of `@anthropic-ai/claude-code` (at `latest`); creates non-root `claudeuser` whose UID matches the host via the `USER_UID` build arg. |
 | `docker-compose.yml` | Single parameterized service named `claude`. Bind-mounts `./projects/${PROJECT}:/workspace` (errors if `PROJECT` unset) and `./claude_home:/home/claudeuser`. `cap_drop: ALL`, `no-new-privileges`, `read_only: true` with tmpfs `/tmp`, caps: 2 GB RAM, 1.0 CPU, `pids_limit: 512`, `nofile: 8192/16384`. Joins the named bridge network `egress`. |
 | `docker-compose.hardened.yml` | Opt-in overlay. Sets `HTTP_PROXY`/`HTTPS_PROXY` on `claude`, flips `egress` to `internal: true` (no direct internet), adds `egress-proxy` sidecar on both `egress` and a new `internet` network. |
 | `hardened/Dockerfile` | `alpine:3.21` + `tinyproxy`. |
@@ -76,7 +76,7 @@ Explicitly NOT protected (see `SECURITY.md` for the full list):
 
 - `@anthropic-ai/claude-code` is not version-pinned (decision: accept `latest` drift, document the manual pin step in README troubleshooting if it ever breaks).
 - The hardened-mode allowlist is HTTP/HTTPS-only and hostname-based; `tinyproxy` does not decrypt TLS.
-- No `curl`/`wget` in the base image. Network-connectivity tests in `docs/test-plan.md` use a small `node` helper.
+- `curl` is in the base image (for hitting APIs and debugging connectivity); `wget` is not (`curl` covers it). Network-connectivity tests in `docs/test-plan.md` use a small `node` helper so they don't depend on either being present.
 
 ## Phase history
 
