@@ -172,6 +172,8 @@ This works with your existing host setup — whatever SSH key, agent, or `gh` lo
    git clone git@github.com:you/other-repo.git   # also fine
    ```
 
+   To open a pull request: the image has no `gh`, so PRs are created against the GitHub API with `curl` (push the branch first). Claude already knows this call; this needs the `Pull requests: Read & write` permission added in step 1. The pattern is `curl -sS -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/<owner>/<repo>/pulls -d '{"title":"…","head":"<branch>","base":"main","body":"…"}'`.
+
 **Other git hosts (GitLab, Bitbucket, self-hosted).** The auto-rewrite only covers `github.com`. `claude_home/.gitconfig` ships with a commented-out GitLab block — uncomment it and add `GITLAB_TOKEN` to `.env` to enable. For Bitbucket or self-hosted servers, follow the same pattern in that file: add a `[url …]` rewrite mapping the SSH URL to HTTPS, plus a `[credential …]` helper that reads your token env var. Bitbucket's username depends on token type (`x-token-auth` for repo/workspace access tokens, your Bitbucket username for app passwords).
 
 A prompt-injected session can use this token within its scope (one repo, the permissions you granted). Keep the scope narrow and rotate or revoke from GitHub Settings if anything looks off. See [SECURITY.md](SECURITY.md#giving-git-access-to-the-container) for the full trade-off and why mounting `~/.ssh` is not recommended.
@@ -233,7 +235,7 @@ The compose file still works directly if you prefer: `PROJECT=my-api docker comp
 
 ## Extending the container (advanced)
 
-The `Dockerfile` ships with a deliberately minimal toolset: `git`, `node`, and `@anthropic-ai/claude-code`. If your project needs more — `python3`, `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
+The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, and `@anthropic-ai/claude-code`. If your project needs more — `python3`, `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
 
 ```bash
 ./claude.sh build
