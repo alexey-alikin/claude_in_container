@@ -32,6 +32,8 @@ Opt-in steps beyond the repo's defaults.
 
 ### Use hardened mode (network allowlist)
 
+> ⚠️ **Work in progress — not yet tested.** Hardened mode is implemented but has not been verified end-to-end (see [test plan](docs/test-plan.md), Part 2). Until those tests have been run and pass, treat the allowlist as best-effort and do not rely on it as a security boundary for untrusted code.
+
 ```bash
 HARDENED=1 ./claude.sh shell <project>
 ```
