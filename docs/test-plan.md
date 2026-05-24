@@ -137,6 +137,21 @@ touch /etc/probe                                            # FAILS
 
 **Expected:** first three commands succeed silently. Last two fail with `Read-only file system`.
 
+### 1.5a Python is available and usable via a venv
+
+Inside `./claude.sh shell example`:
+
+```bash
+python3 --version                                          # prints a 3.x version
+python3 -m venv /workspace/.venv                           # OK (/workspace is writable)
+. /workspace/.venv/bin/activate && pip --version           # OK inside the venv
+deactivate
+rm -rf /workspace/.venv
+pip install --break-system-packages requests               # FAILS (read-only rootfs)
+```
+
+**Expected:** `python3 --version` prints `Python 3.x`; the venv is created and `pip --version` works inside it; the final global `pip install` fails with a read-only filesystem error (and/or a PEP 668 externally-managed-environment notice). Confirms Python works while global installs stay blocked by design.
+
 ### 1.6 Project creation and listing
 
 ```bash
