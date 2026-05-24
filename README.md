@@ -104,7 +104,7 @@ Open a bash shell in the container instead — useful for running `git`, inspect
 ./claude.sh shell my-project
 ```
 
-Run a one-shot Claude command (headless mode, requires `CLAUDE_CODE_OAUTH_TOKEN` — see Authentication):
+Run a one-shot Claude command (headless mode — reuses your persisted login, or `CLAUDE_CODE_OAUTH_TOKEN` if there's no interactive login; see Authentication):
 
 ```bash
 ./claude.sh run my-project -- -p "explain the files in this repo"
@@ -182,7 +182,7 @@ Two modes, pick whichever you need:
 
 **Subscription (interactive).** Run `claude` inside the container. On first start it prompts you through login (theme picker, then a browser auth link; exact UX varies by version). Credentials persist in `./claude_home/`, so later runs skip the flow. No `.env` file needed.
 
-**Headless (`claude -p "..."`).** Requires an OAuth token in a `.env` file:
+**Headless (`claude -p "..."`).** Once you've logged in interactively (above), headless runs reuse the credentials persisted in `./claude_home/` — no `.env` needed. You only need an OAuth token for a context with *no* interactive login, such as CI or a fresh `./claude_home/`:
 
 ```bash
 cp .env.example .env
