@@ -235,13 +235,15 @@ The compose file still works directly if you prefer: `PROJECT=my-api docker comp
 
 ## Extending the container (advanced)
 
-The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3`, `uv`, and `@anthropic-ai/claude-code`. If your project needs more — `python3`, `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
+The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3` (with `pip` and `venv`), `uv`, and `@anthropic-ai/claude-code`. If your project needs more — `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
 
 ```bash
 ./claude.sh build
 ```
 
 The next `./claude.sh shell <project>` or `./claude.sh run <project>` will pick up the new image. The default user inside the container is unprivileged, the filesystem is read-only, and no Linux capabilities are granted — so install everything at build time; runtime `sudo` / `apt install` will fail by design.
+
+For Python specifically, a system-wide `pip install` won't work at runtime — the root filesystem is read-only, and Debian marks the global environment as externally managed (PEP 668). Create a virtualenv inside the project instead (`python3 -m venv .venv && . .venv/bin/activate`); `/workspace` is writable, so the venv and its packages persist with your project. In hardened mode, `pip` reaches PyPI through the egress allowlist (`pypi.org` and `files.pythonhosted.org` are already allowed).
 
 **Don't add Docker access** (`docker.sock` mount, `dind`, `--privileged`). It looks convenient but effectively gives anything inside the sandbox root on your host, which defeats the entire reason this repo exists. If you need Claude to build container images, run those builds on the host outside the sandbox.
 
@@ -289,6 +291,8 @@ What it does NOT protect against:
 For the full threat model — including what's _not_ protected and how to harden further — see [SECURITY.md](SECURITY.md).
 
 ## Hardened mode (network allowlist)
+
+> ⚠️ **Work in progress — not yet tested.** Hardened mode is implemented but has not been verified end-to-end against the [test plan](docs/test-plan.md). Treat the egress allowlist as best-effort, not a proven security boundary, and don't rely on it to contain untrusted code until the Part 2 tests have been run and pass.
 
 By default the container has unrestricted internet access. The repo ships an opt-in overlay that locks egress to a small allowlist of domains via a `tinyproxy` sidecar — Anthropic's API, GitHub, npm, and PyPI by default.
 

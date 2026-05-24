@@ -137,6 +137,21 @@ touch /etc/probe                                            # FAILS
 
 **Expected:** first three commands succeed silently. Last two fail with `Read-only file system`.
 
+### 1.5a Python is available and usable via a venv
+
+Inside `./claude.sh shell example`:
+
+```bash
+python3 --version                                          # prints a 3.x version
+python3 -m venv /workspace/.venv                           # OK (/workspace is writable)
+. /workspace/.venv/bin/activate && pip --version           # OK inside the venv
+deactivate
+rm -rf /workspace/.venv
+pip install --break-system-packages requests               # FAILS (read-only rootfs)
+```
+
+**Expected:** `python3 --version` prints `Python 3.x`; the venv is created and `pip --version` works inside it; the final global `pip install` fails with a read-only filesystem error (and/or a PEP 668 externally-managed-environment notice). Confirms Python works while global installs stay blocked by design.
+
 ### 1.6 Project creation and listing
 
 ```bash
@@ -374,6 +389,19 @@ test_url https://www.google.com
 
 **Expected:** both return a 4xx status — `tinyproxy` serves its block page. The exact status is typically `403`. You should NOT see content from the real upstream.
 
+### 2.3a Hostname-spoofing bypass attempts are blocked
+
+The allowlist relies on anchored regexes (`^github\.com$`) with `FilterDefaultDeny Yes`. This step proves the anchors actually hold, so an allowed token embedded in a hostile hostname can't slip through. It also guards against a future edit to `hardened/filter` that drops an anchor.
+
+```bash
+test_url https://github.com.evil.com         # suffix after an allowed host
+test_url https://notgithub.com               # allowed host as a prefix
+test_url https://evil.github.com             # subdomain of an allowed host
+test_url https://api.anthropic.com.evil.com  # suffix after a second allowed host
+```
+
+**Expected:** all four return a 4xx (`tinyproxy` block page), exactly as in 2.3. None reach a real upstream. If any returns a real status line, an allowlist entry is under-anchored — check `hardened/filter` for a missing `^` or `$`.
+
 ### 2.4 Direct (non-proxy) egress is impossible
 
 ```bash
@@ -383,6 +411,40 @@ node -e "fetch('https://api.anthropic.com').then(r => console.log(r.status)).cat
 (This call deliberately does NOT use the proxy.)
 
 **Expected:** `FAIL: …` with a network error (`getaddrinfo ENOTFOUND`, `Connect Timeout`, or similar). The `claude` container is on an `internal: true` network and has no path to the outside without the proxy.
+
+Now repeat against a raw public IP, which bypasses DNS entirely:
+
+```bash
+node -e "fetch('https://1.1.1.1').then(r => console.log(r.status)).catch(e => console.error('FAIL:', e.message))"
+```
+
+**Expected:** `FAIL: …` with a connect/timeout error (not `ENOTFOUND` — there is no name to resolve here). This is the stronger check: a pass on the first call alone could just mean DNS didn't resolve, whereas Docker's embedded resolver may still answer on an `internal` network. A timeout to a known-routable IP proves there is genuinely **no route** to the internet, not merely a missing name.
+
+### 2.4a CONNECT to non-standard ports is refused
+
+`tinyproxy.conf` allows the HTTPS CONNECT method only to ports 443 and 563. This step confirms an allowed *hostname* on a disallowed *port* is still refused.
+
+```bash
+node -e "
+  const { ProxyAgent } = require('undici');
+  fetch('https://github.com:8443', { dispatcher: new ProxyAgent(process.env.HTTPS_PROXY) })
+    .then(r => console.log('status', r.status))
+    .catch(e => console.error('FAIL:', e.message));
+"
+```
+
+**Expected:** the proxy refuses the CONNECT — a 4xx status or a connection error from the proxy. You should NOT get a real response from `github.com:8443`. (Note: `github.com` does not serve TLS on 8443 anyway; the point is that the *proxy* rejects the tunnel before any upstream connection, regardless of whether the port is open.)
+
+### 2.4b Proxy sidecar is itself locked down — optional
+
+The hardened overlay drops all capabilities, sets `no-new-privileges`, and mounts the proxy's root filesystem read-only. Verify from the host:
+
+```bash
+PROJECT=example docker compose -f docker-compose.yml -f docker-compose.hardened.yml \
+  exec egress-proxy sh -c 'touch /probe 2>&1; grep CapEff /proc/1/status'
+```
+
+**Expected:** `touch /probe` fails with `Read-only file system`, and `CapEff` reads `0000000000000000` (all capabilities dropped). Confirms the sidecar can't be tampered with or escalated even if `tinyproxy` were compromised.
 
 ### 2.5 Claude itself works in hardened mode
 
