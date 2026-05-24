@@ -20,7 +20,7 @@ A Docker setup for running Anthropic's Claude Code CLI inside a container with p
 | `Makefile` | Optional install/uninstall of a `~/.local/bin/cic` launcher that execs `claude.sh`, so the wrapper can be called as `cic ...` from any directory. `help` is the default target. Host-only; nothing about the container changes. |
 | `projects/` | Per-project workspaces, bind-mounted into the container. Everything inside is gitignored except `projects/example/` (whitelisted as a placeholder). |
 | `claude_home/` | Persistent home for the `claudeuser` inside the container — primarily OAuth state, plus a couple of shipped defaults. Most contents are gitignored; the exceptions are `claude_home/.claude/CLAUDE.md` (AI brief loaded into every session) and `claude_home/.gitconfig` (auto-rewrites SSH GitHub URLs to HTTPS, supplies `GITHUB_TOKEN` at request time, and `[include]`s `~/.gitconfig.local`). `claude_home/.gitconfig.local` is gitignored and auto-bootstrapped by `claude.sh` on first invocation from the host's `git config --global user.{name,email}`. |
-| `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode only). Real `.env` is gitignored. |
+| `.env.example` | Template for `CLAUDE_CODE_OAUTH_TOKEN` (headless mode) and the optional `GITHUB_TOKEN` (Option B direct push). Real `.env` is gitignored. |
 | `LICENSE` | MIT. |
 | `README.md`, `SECURITY.md`, `CONTRIBUTING.md` | User-facing docs and contributor guide (kept at the root because GitHub surfaces `SECURITY.md` and `CONTRIBUTING.md` automatically). |
 | `docs/design-decisions.md` | Planning history and locked design decisions for each phase. |
@@ -87,4 +87,4 @@ Each phase shipped as its own PR. Source of truth is `git log`; this is the elev
 3. Hardening pass: read-only rootfs, tmpfs, pids/fd limits, `chmod` recommendation.
 4. `SECURITY.md` threat model.
 5. Hardened-mode overlay with `tinyproxy` egress allowlist; `docs/` meta-docs.
-6. CI (hadolint, compose lint, trivy SARIF), `CONTRIBUTING.md`, GitHub issue templates.
+6. CI (hadolint, compose lint, trivy image scan), `CONTRIBUTING.md`, GitHub issue templates.
