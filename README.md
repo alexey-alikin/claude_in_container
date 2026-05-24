@@ -267,6 +267,8 @@ For the full threat model — including what's _not_ protected and how to harden
 
 ## Hardened mode (network allowlist)
 
+> ⚠️ **Work in progress — not yet tested.** Hardened mode is implemented but has not been verified end-to-end against the [test plan](docs/test-plan.md). Treat the egress allowlist as best-effort, not a proven security boundary, and don't rely on it to contain untrusted code until the Part 2 tests have been run and pass.
+
 By default the container has unrestricted internet access. The repo ships an opt-in overlay that locks egress to a small allowlist of domains via a `tinyproxy` sidecar — Anthropic's API, GitHub, npm, and PyPI by default.
 
 Enable it by setting `HARDENED=1`:
