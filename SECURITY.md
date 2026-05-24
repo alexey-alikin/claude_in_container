@@ -26,6 +26,18 @@ It is **not** a replacement for a VM or a hardened sandbox. Docker shares the ho
 - **Supply-chain attacks.** A compromised release of `@anthropic-ai/claude-code`, the `node:20-slim` base image, or any package Claude installs into your project can bypass everything here. Pinning reduces but does not eliminate this risk.
 - **Host-level compromise.** This is a container, not a VM. If your host kernel is exploited or the Docker daemon itself is compromised, the container's protections do not apply.
 
+### MCP servers
+
+Claude Code can run [MCP](https://modelcontextprotocol.io) servers (see [README → MCP servers](README.md#mcp-servers) for how to add them). An MCP server is just another process started inside the container, so it **inherits every protection above** — non-root, `cap_drop: ALL`, `no-new-privileges`, read-only root filesystem, and no Docker socket. Running an MCP is **not** a container-escape vector; it can do no more to your host than any other code in the session.
+
+What it *can* do is everything the session itself can, within the container's blast radius:
+
+- **Read and write the mounted project and `claude_home/`** — both are bind mounts, so changes persist to the host.
+- **Read secrets in the environment.** If `GITHUB_TOKEN` is set in `.env`, any MCP process can read and use it within that token's scope.
+- **Exfiltrate over the network** in default mode (mitigated by [hardened mode](#use-hardened-mode-network-allowlist)).
+
+Treat an MCP server like any dependency you execute: only add servers you trust, **pin** them to a tag or commit rather than a moving branch (`uvx --from git+…@<tag>`, an exact npm version) so a rebuild can't silently pull new code, and prefer running [hardened](#use-hardened-mode-network-allowlist) with `GITHUB_TOKEN` unset or narrowly scoped ([see git access](#giving-git-access-to-the-container)) when using third-party servers.
+
 ## Hardening recommendations
 
 Opt-in steps beyond the repo's defaults.
@@ -74,6 +86,8 @@ Then rebuild with `./claude.sh build`.
 ### Pin the base image by digest
 
 Same idea for the base image. Replace `FROM node:20-slim` with the digest form (`FROM node:20-slim@sha256:…`). You will need to bump it manually when you want security updates.
+
+The `uv`/`uvx` image is pulled the same way — `COPY --from=ghcr.io/astral-sh/uv:latest` — so it carries the same `latest` drift. Pin it to a release tag or digest (`ghcr.io/astral-sh/uv:0.5.x` or `…@sha256:…`) if you want reproducible MCP runtimes.
 
 ### Use rootless Docker
 

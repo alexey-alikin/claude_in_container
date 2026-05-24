@@ -326,6 +326,16 @@ claude setup-token
 
 **Expected:** Claude responds with a greeting; the command exits 0.
 
+### 1.15 MCP runtimes are available
+
+```bash
+./claude.sh shell example
+npx --version    # Node-based MCP servers
+uvx --version    # Python-based MCP servers (uv, baked in from ghcr.io/astral-sh/uv)
+```
+
+**Expected:** both commands print a version and exit 0. This confirms the image can run the two common kinds of stdio MCP server (`npx -y <pkg>` and `uvx <pkg>`).
+
 ---
 
 ## Part 2 — hardened mode
