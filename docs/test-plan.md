@@ -266,7 +266,53 @@ GITHUB_TOKEN= git ls-remote git@github.com:<you>/<your-private-repo>.git
 
 **Expected:** exits non-zero with `fatal: Authentication failed` (or similar HTTP 401 message). It must NOT hang waiting for input and must NOT succeed — a regression where the helper silently outputs empty credentials would let unrelated code paths look like they're working when they aren't.
 
-### 1.13 Headless mode — optional, requires OAuth token
+### 1.13 First-run bootstraps git identity from the host
+
+On the host, with a clean `claude_home/`:
+
+```bash
+rm -f claude_home/.gitconfig.local
+./claude.sh build
+```
+
+**Expected:**
+
+- the wrapper prints a `First-time setup:` message naming the `name` / `email` it read from `git config --global user.{name,email}`
+- `cat claude_home/.gitconfig.local` shows a `[user]` block with that name and email
+- a second `./claude.sh build` is silent (the file already exists; bootstrap is idempotent)
+
+Sanity-check the include path actually reaches the container:
+
+```bash
+./claude.sh shell example
+# inside the container:
+git config --get user.email     # should print the host email
+exit
+```
+
+Fallback when the host has no identity (run only if you don't mind temporarily clearing your global git config — back it up first):
+
+```bash
+rm -f claude_home/.gitconfig.local
+git config --global --unset user.name 2>/dev/null || true
+git config --global --unset user.email 2>/dev/null || true
+./claude.sh build
+# restore your host identity afterwards
+```
+
+**Expected:** wrapper prints a `note:` line saying host identity is not configured and points at `claude_home/.gitconfig.local`. No file is created; subsequent runs print the same note until the user fixes it on the host or creates the file by hand.
+
+Opt-out:
+
+```bash
+rm -f claude_home/.gitconfig.local
+CIC_SKIP_GIT_IDENTITY=1 ./claude.sh build
+ls claude_home/.gitconfig.local 2>&1 || echo "(not created — correct)"
+```
+
+**Expected:** no `First-time setup:` message, no file created. Re-running without the env var on a host with identity configured creates the file as in the happy path above.
+
+### 1.14 Headless mode — optional, requires OAuth token
 
 ```bash
 # On the host, generate the token from an interactive shell first:
