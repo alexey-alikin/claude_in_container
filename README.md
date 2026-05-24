@@ -235,7 +235,7 @@ The compose file still works directly if you prefer: `PROJECT=my-api docker comp
 
 ## Extending the container (advanced)
 
-The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3` (with `pip` and `venv`), and `@anthropic-ai/claude-code`. If your project needs more — `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
+The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3` (with `pip` and `venv`), `uv`, and `@anthropic-ai/claude-code`. If your project needs more — `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
 
 ```bash
 ./claude.sh build
@@ -248,6 +248,29 @@ For Python specifically, a system-wide `pip install` won't work at runtime — t
 **Don't add Docker access** (`docker.sock` mount, `dind`, `--privileged`). It looks convenient but effectively gives anything inside the sandbox root on your host, which defeats the entire reason this repo exists. If you need Claude to build container images, run those builds on the host outside the sandbox.
 
 **Claude is already aware of these constraints.** `claude_home/.claude/CLAUDE.md` is loaded automatically at the start of every session and tells the model about the writable paths, network restrictions, and how to ask you to add a missing tool rather than trying to install it itself. It also notes that the launcher (`claude.sh`, the compose files, `Dockerfile`) and the repo-root `.env` live on the host *outside* the mount — so the model treats anything involving them as host-side work for you, instead of trying to read or run them from inside the container. You can edit it to layer your own preferences on top.
+
+## MCP servers
+
+Claude Code can connect to [MCP](https://modelcontextprotocol.io) servers, and the image ships the runtimes for the two common kinds of stdio server:
+
+- **Node-based** (run with `npx`) work out of the box — `node`/`npx` are already in the image.
+- **Python-based** (run with `uvx`) work too — `uv`/`uvx` are baked into the `Dockerfile`.
+
+Add one from inside a session (`./claude.sh shell <project>`):
+
+```bash
+# Node MCP
+claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem /workspace
+
+# Python MCP (from PyPI, or a pinned git ref)
+claude mcp add my-server -- uvx --from git+https://github.com/owner/repo@v1.0.0 my-server
+```
+
+**Put the whole `claude mcp add` command on one physical line.** If a pasted command wraps and a newline lands mid-command, the shell registers a half-built server (e.g. command `uvx` with no real args) and then tries to run the leftover tokens as a stray command — you'll see something like `bash: git+https://…: No such file or directory`. Remove the broken entry with `claude mcp remove <name>` and re-add it on a single line.
+
+In **hardened mode** the default allowlist already covers GitHub, npm, and PyPI, so typical installs work unchanged; `uv` itself is baked in at build time, so nothing is fetched from a new host at runtime. If a server reaches some other host, add it to [`hardened/filter`](hardened/filter).
+
+**MCP servers run *inside* the sandbox with the same access Claude has** — your mounted project, `claude_home`, and any tokens in the environment (e.g. `GITHUB_TOKEN`). They can't escape the container, but they operate within its blast radius, so treat MCP code like any other dependency you run: only add servers you trust, and **pin** to a tag or commit rather than a moving branch. See [SECURITY.md](SECURITY.md#mcp-servers) for the full picture.
 
 ## Security model (short version)
 
