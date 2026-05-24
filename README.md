@@ -325,7 +325,7 @@ Notes and limitations:
 UID=$(id -u) ./claude.sh build
 ```
 
-**Claude Code update broke the container.** The Dockerfile installs `@anthropic-ai/claude-code` at `latest`. If a new release breaks things, pin a known-good version: edit `Dockerfile` line 4 to read
+**Claude Code update broke the container.** The Dockerfile installs `@anthropic-ai/claude-code` at `latest`. If a new release breaks things, pin a known-good version: edit the `npm install -g @anthropic-ai/claude-code` line in the `Dockerfile` to read
 
 ```dockerfile
 RUN npm install -g @anthropic-ai/claude-code@<version>
