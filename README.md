@@ -243,7 +243,7 @@ The next `./claude.sh shell <project>` or `./claude.sh run <project>` will pick 
 
 **Don't add Docker access** (`docker.sock` mount, `dind`, `--privileged`). It looks convenient but effectively gives anything inside the sandbox root on your host, which defeats the entire reason this repo exists. If you need Claude to build container images, run those builds on the host outside the sandbox.
 
-**Claude is already aware of these constraints.** `claude_home/.claude/CLAUDE.md` is loaded automatically at the start of every session and tells the model about the writable paths, network restrictions, and how to ask you to add a missing tool rather than trying to install it itself. You can edit it to layer your own preferences on top.
+**Claude is already aware of these constraints.** `claude_home/.claude/CLAUDE.md` is loaded automatically at the start of every session and tells the model about the writable paths, network restrictions, and how to ask you to add a missing tool rather than trying to install it itself. It also notes that the launcher (`claude.sh`, the compose files, `Dockerfile`) and the repo-root `.env` live on the host *outside* the mount — so the model treats anything involving them as host-side work for you, instead of trying to read or run them from inside the container. You can edit it to layer your own preferences on top.
 
 ## Security model (short version)
 
