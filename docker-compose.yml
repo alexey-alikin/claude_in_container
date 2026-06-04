@@ -1,5 +1,10 @@
 services:
   claude:
+    # IMAGE_TAG defaults to `base` (the shared image built from the repo-root
+    # Dockerfile). The wrapper sets it to the project name when
+    # projects/<name>/Dockerfile exists, so per-project images can layer on
+    # extra deps without affecting other projects.
+    image: claude_in_container:${IMAGE_TAG:-base}
     build:
       context: .
       args:
