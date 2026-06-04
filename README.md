@@ -235,19 +235,47 @@ The compose file still works directly if you prefer: `PROJECT=my-api docker comp
 
 ## Extending the container (advanced)
 
-The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3` (with `pip` and `venv`), `uv`, and `@anthropic-ai/claude-code`. If your project needs more — `make`, `go`, a specific linter — add it to the `apt-get install` line (or a new `RUN` step) and rebuild:
+The `Dockerfile` ships with a deliberately minimal toolset: `git`, `curl`, `node`, `python3` (with `pip` and `venv`), `uv`, and `@anthropic-ai/claude-code`. If your project needs more — `make`, `go`, a specific linter — you have two options:
 
-```bash
-./claude.sh build
-```
+1. **Add it to the shared base image** (root `Dockerfile`). Best when every project benefits from the tool. Edit the `apt-get install` line (or add a `RUN` step) and rebuild with `./claude.sh build`.
+2. **Add it to one project only.** Best when a dep is heavy or noisy and you don't want it on the base — chromium, a CUDA toolchain, a giant SDK. See [Per-project dependencies](#per-project-dependencies) below.
 
-The next `./claude.sh shell <project>` or `./claude.sh run <project>` will pick up the new image. The default user inside the container is unprivileged, the filesystem is read-only, and no Linux capabilities are granted — so install everything at build time; runtime `sudo` / `apt install` will fail by design.
+In either case, the default user inside the container is unprivileged, the filesystem is read-only, and no Linux capabilities are granted — so install everything at build time; runtime `sudo` / `apt install` will fail by design.
 
 For Python specifically, a system-wide `pip install` won't work at runtime — the root filesystem is read-only, and Debian marks the global environment as externally managed (PEP 668). Create a virtualenv inside the project instead (`python3 -m venv .venv && . .venv/bin/activate`); `/workspace` is writable, so the venv and its packages persist with your project. In hardened mode, `pip` reaches PyPI through the egress allowlist (`pypi.org` and `files.pythonhosted.org` are already allowed).
 
 **Don't add Docker access** (`docker.sock` mount, `dind`, `--privileged`). It looks convenient but effectively gives anything inside the sandbox root on your host, which defeats the entire reason this repo exists. If you need Claude to build container images, run those builds on the host outside the sandbox.
 
 **Claude is already aware of these constraints.** `claude_home/.claude/CLAUDE.md` is loaded automatically at the start of every session and tells the model about the writable paths, network restrictions, and how to ask you to add a missing tool rather than trying to install it itself. It also notes that the launcher (`claude.sh`, the compose files, `Dockerfile`) and the repo-root `.env` live on the host *outside* the mount — so the model treats anything involving them as host-side work for you, instead of trying to read or run them from inside the container. You can edit it to layer your own preferences on top.
+
+## Per-project dependencies
+
+If only one project needs a heavy or noisy dependency (a headless browser, a CUDA toolchain, a vendor SDK), put it in a project-specific Dockerfile instead of bloating the shared base. Drop a `Dockerfile` at `projects/<name>/Dockerfile` that `FROM`s the base image and adds what that project needs:
+
+```dockerfile
+# projects/scraper/Dockerfile
+FROM claude_in_container:base
+
+USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends chromium fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
+USER claudeuser
+```
+
+That's it — the wrapper picks it up automatically:
+
+- `./claude.sh shell scraper` (or `run scraper`) builds `claude_in_container:scraper` on top of the base the first time, then uses it for every later session.
+- `./claude.sh build` rebuilds the base and then refreshes every project image that has its own `Dockerfile`, so a base change propagates to all derived images in one command.
+- Projects with no `Dockerfile` keep using the shared base image — no change for them.
+
+A few things worth knowing:
+
+- **Drop back to `USER root` to install, then back to `USER claudeuser`.** The base ends as the unprivileged `claudeuser`; `apt-get` needs root. Without the final `USER claudeuser`, Claude would run as root in that project's container, which weakens the sandbox.
+- **The build context is the project folder.** You can `COPY pyproject.toml ./` etc. to seed dependency installs into the image. For large projects, add a `.dockerignore` next to the Dockerfile so the build doesn't ship the whole tree to the Docker daemon.
+- **The project Dockerfile lives inside the project.** `projects/*` is gitignored from this repo, so the file becomes part of your project's own git history — not this one. If you want to share a recipe, copy it into your project's repo.
+- **To force a rebuild of one project**, delete its image and re-enter: `docker image rm claude_in_container:<name>` then `./claude.sh shell <name>`. Or run `./claude.sh build` to refresh all of them.
+- **In hardened mode**, the build itself runs on the host with normal internet access, so `apt-get` works. Runtime egress restrictions still apply — anything fetched at runtime (e.g. chromium pulling extra components on first launch) must be on the allowlist.
 
 ## MCP servers
 

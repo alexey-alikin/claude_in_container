@@ -34,6 +34,11 @@ Set HARDENED=1 to also apply docker-compose.hardened.yml (network allowlist).
 Set CIC_SKIP_GIT_IDENTITY=1 to skip the first-run copy of your host git
 identity into claude_home/.gitconfig.local.
 
+Per-project deps: drop a Dockerfile at projects/<name>/Dockerfile (typically
+`FROM claude_in_container:base` plus extras) and the wrapper will build and
+use claude_in_container:<name> automatically. Projects without a Dockerfile
+use the shared base image. See README "Per-project dependencies".
+
 Examples:
   ./claude.sh new my-api
   ./claude.sh shell my-api                       # bash shell in container
@@ -67,6 +72,58 @@ require_exists() {
   if [[ ! -d "projects/$name" ]]; then
     echo "error: projects/$name does not exist. Create it with: ./claude.sh new $name" >&2
     exit 1
+  fi
+}
+
+# Per-project Dockerfile support: if projects/<name>/Dockerfile exists, the
+# wrapper builds a project-specific image (claude_in_container:<name>) layered
+# on top of the shared base image, and points compose at it via IMAGE_TAG.
+# Projects with no Dockerfile use the shared base image as before.
+
+base_image_exists() {
+  [[ -n "$(docker images -q claude_in_container:base 2>/dev/null)" ]]
+}
+
+project_image_exists() {
+  [[ -n "$(docker images -q "claude_in_container:$1" 2>/dev/null)" ]]
+}
+
+ensure_base_image() {
+  if ! base_image_exists; then
+    echo "Base image claude_in_container:base missing; building..." >&2
+    PROJECT=example docker compose "${compose_args[@]}" build claude
+  fi
+}
+
+# Build claude_in_container:<name> from projects/<name>/Dockerfile.
+# Context is the project folder so users can COPY local files (e.g. a
+# package.json) into their image; add a .dockerignore if the project is large.
+build_project_image() {
+  local name="$1"
+  local tag="claude_in_container:$name"
+  local context="projects/$name"
+  echo "Building $tag from $context/Dockerfile..." >&2
+  docker build -t "$tag" -f "$context/Dockerfile" "$context"
+}
+
+# Ensure the project's image is ready. If projects/<name>/Dockerfile exists,
+# builds claude_in_container:<name> (and the base it depends on) when missing.
+prepare_project_image() {
+  local name="$1"
+  if [[ -f "projects/$name/Dockerfile" ]]; then
+    ensure_base_image
+    if ! project_image_exists "$name"; then
+      build_project_image "$name"
+    fi
+  fi
+}
+
+# Pure lookup: which IMAGE_TAG should compose use for <name>?
+image_tag_for() {
+  if [[ -f "projects/$1/Dockerfile" ]]; then
+    echo "$1"
+  else
+    echo "base"
   fi
 }
 
@@ -149,7 +206,9 @@ case "$cmd" in
     require_name "$name"
     require_exists "$name"
     bootstrap_git_identity
-    PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude
+    prepare_project_image "$name"
+    tag=$(image_tag_for "$name")
+    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude
     ;;
   run)
     name="${1:-}"
@@ -160,7 +219,9 @@ case "$cmd" in
     fi
     require_exists "$name"
     bootstrap_git_identity
-    PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
+    prepare_project_image "$name"
+    tag=$(image_tag_for "$name")
+    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
     ;;
   build)
     # PROJECT must be set for compose to interpolate the volume mount,
@@ -168,6 +229,19 @@ case "$cmd" in
     # since projects/example/ is committed to the repo.
     bootstrap_git_identity
     PROJECT=example docker compose "${compose_args[@]}" build "$@"
+    # With no extra args, also refresh any per-project images so they pick up
+    # the latest base. Skipped when args are passed (e.g. `build egress-proxy`
+    # or `build --no-cache`) — call `./claude.sh shell <name>` to rebuild a
+    # single project on demand, or delete its image and re-run.
+    if [[ $# -eq 0 ]]; then
+      for project_dir in projects/*/; do
+        [[ -d "$project_dir" ]] || continue
+        project_name=$(basename "$project_dir")
+        if [[ -f "$project_dir/Dockerfile" ]]; then
+          build_project_image "$project_name"
+        fi
+      done
+    fi
     ;;
   *)
     echo "error: unknown command '$cmd'" >&2
