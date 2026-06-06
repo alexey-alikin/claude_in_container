@@ -277,6 +277,33 @@ A few things worth knowing:
 - **To force a rebuild of one project**, delete its image and re-enter: `docker image rm claude_in_container:<name>` then `./claude.sh shell <name>`. Or run `./claude.sh build` to refresh all of them.
 - **In hardened mode**, the build itself runs on the host with normal internet access, so `apt-get` works. Runtime egress restrictions still apply — anything fetched at runtime (e.g. chromium pulling extra components on first launch) must be on the allowlist.
 
+### Tools that write to their install path at runtime
+
+Some tools install to a fixed path at build time (when root can write anywhere) and then expect to *keep writing* to that same path at runtime — cookies, caches, lockfiles, per-session state. Since the rootfs is read-only outside `/workspace`, `/home/claudeuser`, and `/tmp`, those runtime writes fail with `ENOENT` or `EACCES`, often from deep inside a stack trace.
+
+The fix is to redirect the runtime writes to a writable path, not to widen what's writable in the sandbox. Most tools separate "where my binary lives" from "where my per-session state lives" — find the second knob (commonly `--user-data-dir`, `--cache-dir`, or a separate `*_CACHE_DIR` / `*_HOME` env var) and point only that at `/tmp/...` or `/home/claudeuser/.cache/...`.
+
+Worked example — `@playwright/mcp`:
+
+- **Build time** (in your project's `Dockerfile`): `ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` so the chromium install lands at a known location in the image. Keep this env var set at runtime too so Playwright still finds the binary.
+- **Runtime**: chromium then tries to create a per-session user-data-dir under that same path → fails. In your project's `.mcp.json`, pass `--user-data-dir` pointing at a writable path — `/tmp/playwright-mcp` (ephemeral, wiped on container exit) or `/home/claudeuser/.cache/playwright-mcp` (persists across sessions in `claude_home/`):
+
+  ```json
+  {
+    "mcpServers": {
+      "playwright": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@playwright/mcp@latest", "--user-data-dir", "/tmp/playwright-mcp"]
+      }
+    }
+  }
+  ```
+
+  MCP servers load at session start, so changes to `.mcp.json` only take effect after restarting the session.
+
+Pattern to recognize: if your project Dockerfile sets a `*_PATH` or `*_HOME` env var pointing into `/opt`, `/usr/local`, or anywhere else outside the three writable paths, check whether the tool also *writes* there at runtime. If it does, find the per-session override and redirect that — don't try to make more of the rootfs writable, since the read-only rootfs is what makes the sandbox a sandbox.
+
 ## MCP servers
 
 Claude Code can connect to [MCP](https://modelcontextprotocol.io) servers, and the image ships the runtimes for the two common kinds of stdio server:
