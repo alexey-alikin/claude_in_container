@@ -15,10 +15,11 @@ Usage: ./claude.sh <command> [args]
 Commands:
   list                          list all projects
   new   <name>                  create projects/<name> and git init it
-  shell <name>                  open a bash shell in the container for <name>
+  shell <name> [--port N]...    open a bash shell in the container for <name>
                                 (useful for inspecting the environment or
                                 running git commands)
-  run   <name> [-- <args...>]   run `claude` in the container for <name>;
+  run   <name> [--port N]... [-- <args...>]
+                                run `claude` in the container for <name>;
                                 with no args, starts an interactive session;
                                 with `-- <args>`, forwards <args> to claude
                                 (e.g. `-- -p "..."` for headless mode)
@@ -27,6 +28,13 @@ Commands:
                                 `docker compose build` (e.g. --no-cache,
                                 or a service name like `egress-proxy`)
   help                          show this help
+
+--port publishes a container port to 127.0.0.1 on the host (loopback only,
+so other devices on your LAN cannot reach it). Repeat the flag for multiple
+ports. `--port 8001` maps host 8001 → container 8001; `--port 8001:3000`
+maps host 8001 → container 3000. Your server inside the container must
+bind 0.0.0.0:<port>, not 127.0.0.1:<port>. See SECURITY.md for the
+attack-surface tradeoff.
 
 Project names: letters, digits, underscore, hyphen only.
 
@@ -43,6 +51,7 @@ Examples:
   ./claude.sh new my-api
   ./claude.sh shell my-api                       # bash shell in container
   ./claude.sh run my-api                         # interactive Claude session
+  ./claude.sh run my-api --port 8001             # publish container 8001 to host
   ./claude.sh run my-api -- -p "explain this"    # headless one-shot
   ./claude.sh build                              # rebuild after Dockerfile change
   ./claude.sh build --no-cache                   # force full rebuild
@@ -127,6 +136,37 @@ image_tag_for() {
   fi
 }
 
+# Consume `--port N` / `--port N:M` flags from the front of "$@". Populates
+# the global `publish_args` array with matching `--publish 127.0.0.1:N:M`
+# entries (loopback binding is not optional here — LAN exposure would need to
+# be an explicit decision, not the default). Sets `port_shift` to the number
+# of argv slots consumed so the caller can `shift $port_shift`. Stops at the
+# first non-`--port` token so the `run` command's `--` sentinel still works.
+parse_port_flags() {
+  publish_args=()
+  port_shift=0
+  while [[ $# -gt 0 && "$1" != "--" ]]; do
+    if [[ "$1" != "--port" ]]; then
+      return 0
+    fi
+    if [[ $# -lt 2 ]]; then
+      echo "error: --port requires a value (e.g. --port 8001 or --port 8001:3000)" >&2
+      exit 1
+    fi
+    local spec="$2"
+    if [[ "$spec" =~ ^[0-9]+$ ]]; then
+      publish_args+=(--publish "127.0.0.1:$spec:$spec")
+    elif [[ "$spec" =~ ^[0-9]+:[0-9]+$ ]]; then
+      publish_args+=(--publish "127.0.0.1:$spec")
+    else
+      echo "error: --port expects N or N:M (got '$spec')" >&2
+      exit 1
+    fi
+    shift 2
+    port_shift=$((port_shift + 2))
+  done
+}
+
 # Copy the host's git identity into claude_home/.gitconfig.local on first run
 # so that commits inside the container inherit the same author by default.
 # Idempotent — does nothing if the file already exists or CIC_SKIP_GIT_IDENTITY=1.
@@ -204,16 +244,25 @@ case "$cmd" in
   shell)
     name="${1:-}"
     require_name "$name"
+    shift
+    parse_port_flags "$@"
+    shift "$port_shift"
+    if [[ $# -gt 0 ]]; then
+      echo "error: unexpected argument '$1' (shell only accepts --port after the project name)" >&2
+      exit 1
+    fi
     require_exists "$name"
     bootstrap_git_identity
     prepare_project_image "$name"
     tag=$(image_tag_for "$name")
-    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude
+    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm ${publish_args[@]+"${publish_args[@]}"} claude
     ;;
   run)
     name="${1:-}"
     require_name "$name"
     shift
+    parse_port_flags "$@"
+    shift "$port_shift"
     if [[ "${1:-}" == "--" ]]; then
       shift
     fi
@@ -221,7 +270,7 @@ case "$cmd" in
     bootstrap_git_identity
     prepare_project_image "$name"
     tag=$(image_tag_for "$name")
-    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm claude claude "$@"
+    IMAGE_TAG="$tag" PROJECT="$name" docker compose "${compose_args[@]}" run --rm ${publish_args[@]+"${publish_args[@]}"} claude claude "$@"
     ;;
   build)
     # PROJECT must be set for compose to interpolate the volume mount,

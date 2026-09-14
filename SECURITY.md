@@ -67,6 +67,20 @@ The container ships with `git` installed but no credentials. Two ways to handle 
 
 What **not** to do: avoid bind-mounting your host's `~/.ssh` directory or your global `~/.gitconfig` into the container. Your usual SSH key typically authenticates as you to every git host you've used (personal GitHub, work GitLab, internal Gitea, …) — a leak from a single prompt-injected session breaks all of them at once. A global `~/.gitconfig` can also pull in `[includeIf]` paths, signing-key references, and `[url] insteadOf` rewrites you didn't intend to expose.
 
+### Forwarding a container port to the host
+
+`./claude.sh run <name> --port <N>` (or `--port <N>:<M>`) publishes a port from inside the container to `127.0.0.1` on the host. Useful for hitting a dev server or preview build from your host browser. See [README → Forwarding a port to the host](README.md#forwarding-a-port-to-the-host) for the mechanics.
+
+The tradeoff is that you're now running a service Claude controls, and pointing your browser at it. In the worst case — a prompt-injected session — that service can be anything: a phishing login page (your browser trusts `localhost` implicitly), JavaScript that probes your other `localhost:*` services via CSRF or DNS rebinding, or a "helpful" file to download and run. The port itself is passive; risk only materializes when a client — usually your browser — connects. Once it does, the attacker is executing in your browser's context.
+
+Steps that meaningfully reduce this risk:
+
+- **Only forward ports you're actively using.** Every open port is one more entrance.
+- **Never bind to `0.0.0.0`.** `--port` in `claude.sh` always binds `127.0.0.1`. If you bypass the wrapper and use raw `docker compose` with `"N:N"` (no host IP prefix), Linux binds `0.0.0.0` and other devices on your LAN become part of the threat model.
+- **Use a separate browser profile (or an incognito window) for `localhost:*` dev.** No saved passwords, no session cookies for your real accounts, no address/credit-card autofill data to leak.
+- **Disable address and credit-card autofill** in your regular browser (Chrome: `chrome://settings/autofill`; Firefox: `about:preferences#privacy`). These autofill by field name, not by domain, and are the leakier channel. Password managers are usually domain-scoped and won't leak to `localhost` unless you've explicitly saved a credential there — check for and remove any.
+- **Don't click `http://localhost:<port>` links Claude prints in the terminal** unless you'd already planned to open that port yourself. Some terminals auto-linkify them.
+
 ### Lock down the OAuth credentials
 
 ```bash
