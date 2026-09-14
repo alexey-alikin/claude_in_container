@@ -39,6 +39,8 @@ Credentials are written to `./claude_home/` on the host and reused by every late
 
 The `--` in `run` is optional: omit it to start an interactive Claude session, or include it to forward flags to `claude` (e.g. `./claude.sh run my-api -- -p "summarize this repo"` runs `claude -p "summarize this repo"`). Project names must match `[a-zA-Z0-9_-]+`.
 
+Both `shell` and `run` also accept `--port N` (repeatable) to publish a container port to `127.0.0.1` on the host — see [Forwarding a port to the host](#forwarding-a-port-to-the-host) for details and tradeoffs.
+
 ## Install (optional)
 
 To call the wrapper from any directory as `cic` instead of `./claude.sh`:
@@ -113,6 +115,24 @@ Run a one-shot Claude command (headless mode — reuses your persisted login, or
 The container's `/workspace` is bind-mounted to `./projects/my-project/` on your host. Put your code there; edits sync both ways instantly.
 
 Other wrapper commands: `./claude.sh list` shows all projects, `./claude.sh help` shows full usage.
+
+## Forwarding a port to the host
+
+If you're running a dev server or preview build inside the container and want to hit it from your host browser, use `--port`:
+
+```bash
+./claude.sh run my-api --port 8001                 # container 8001 → host 127.0.0.1:8001
+./claude.sh run my-api --port 8001:3000            # host 8001 → container 3000
+./claude.sh run my-api --port 8001 --port 5173     # multiple ports (repeat the flag)
+./claude.sh shell my-api --port 8001               # same for a bash shell
+```
+
+The wrapper always binds the host side to `127.0.0.1`, so only your machine — not other devices on your LAN — can reach the port. Two gotchas:
+
+- Your server **inside** the container must bind `0.0.0.0:<N>`, not `127.0.0.1:<N>`. A server listening only on the container's loopback isn't reachable from the host even with the mapping in place. Most dev servers take a `--host 0.0.0.0` flag (Vite, uvicorn, `python -m http.server`, `next dev`, etc.).
+- Only one process can hold a given host port at a time. Starting a second `--port 8001` session while the first is running will fail with "port already allocated." Use a different host port (`--port 8002:8001`) or stop the first session.
+
+Forwarding a port also opens a new attack surface — see [SECURITY.md → Forwarding a container port to the host](SECURITY.md#forwarding-a-container-port-to-the-host) for the tradeoff and concrete mitigations.
 
 ## Pushing your work to a remote
 
